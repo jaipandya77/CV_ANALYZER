@@ -1,177 +1,65 @@
 import streamlit as st
-import PyPDF2
-import csv
-import json
-import openpyxl
-
+import PyPDF2, csv, json, openpyxl
 from google import genai
 from datetime import datetime
 
-
-# ============================================================
-# GEMINI
-# ============================================================
-
+# === GEMINI ===
 client = genai.Client(api_key=st.secrets["GEMINI_API_KEY"])
-
 MODEL = "gemini-3.5-flash-lite"
 
-
-# ============================================================
-# PDF
-# ============================================================
-
+# === PDF EXTRACTOR ===
 def extract_text_from_pdf(file):
+    return "\n".join(page.extract_text() or "" for page in PyPDF2.PdfReader(file).pages)
 
-    reader = PyPDF2.PdfReader(file)
-
-    return "\n".join(
-        page.extract_text() or ""
-        for page in reader.pages
-    )
-
-
-# ============================================================
-# GEMINI
-# ============================================================
-
+# === RESUME SCHEMA (unchanged) ===
 resume_schema = {
-
     "type": "object",
-
     "properties": {
-
-        "candidate_name": {
-            "type": "string"
-        },
-
+        "candidate_name": {"type": "string"},
         "highest_qualification": {
-
             "type": "object",
-
             "properties": {
-
-                "degree": {
-                    "type": "string"
-                },
-
-                "specialization": {
-                    "type": "string"
-                },
-
-                "institute": {
-                    "type": "string"
-                },
-
-                "year": {
-                    "type": "string"
-                }
+                "degree": {"type": "string"},
+                "specialization": {"type": "string"},
+                "institute": {"type": "string"},
+                "year": {"type": "string"}
             },
-
-            "required": [
-                "degree",
-                "specialization",
-                "institute",
-                "year"
-            ]
+            "required": ["degree", "specialization", "institute", "year"]
         },
-
         "work_experience": {
-
             "type": "array",
-
             "items": {
-
                 "type": "object",
-
                 "properties": {
-
-                    "company": {
-                        "type": "string"
-                    },
-
-                    "client_or_project_owner": {
-                        "type": "string"
-                    },
-
-                    "designation": {
-                        "type": "string"
-                    },
-
-                    "start_date": {
-                        "type": "string"
-                    },
-
-                    "end_date": {
-                        "type": "string"
-                    },
-
-                    "country": {
-                        "type": "string"
-                    },
-
-                    "is_mnc": {
-                        "type": "boolean"
-                    },
-
-                    "is_listed": {
-                        "type": "boolean"
-                    },
-
+                    "company": {"type": "string"},
+                    "client_or_project_owner": {"type": "string"},
+                    "designation": {"type": "string"},
+                    "start_date": {"type": "string"},
+                    "end_date": {"type": "string"},
+                    "country": {"type": "string"},
+                    "is_mnc": {"type": "boolean"},
+                    "is_listed": {"type": "boolean"},
                     "organization_category": {
-
                         "type": "string",
-
-                        "enum": [
-                            "Owner",
-                            "Contractor",
-                            "Consultant",
-                            "Freelancer",
-                            "Unknown"
-                        ]
+                        "enum": ["Owner", "Contractor", "Consultant", "Freelancer", "Unknown"]
                     }
                 },
-
                 "required": [
-
-                    "company",
-                    "client_or_project_owner",
-                    "designation",
-                    "start_date",
-                    "end_date",
-                    "country",
-                    "is_mnc",
-                    "is_listed",
-                    "organization_category"
+                    "company", "client_or_project_owner", "designation",
+                    "start_date", "end_date", "country",
+                    "is_mnc", "is_listed", "organization_category"
                 ]
             }
         },
-
-        "certifications": {
-
-            "type": "array",
-
-            "items": {
-                "type": "string"
-            }
-        }
+        "certifications": {"type": "array", "items": {"type": "string"}}
     },
-
-    "required": [
-
-        "candidate_name",
-        "highest_qualification",
-        "work_experience",
-        "certifications"
-    ]
+    "required": ["candidate_name", "highest_qualification", "work_experience", "certifications"]
 }
 
-
+# === GEMINI EXTRACTION ===
 def extract_resume_data(raw_text):
-
-    # KEEP YOUR EXISTING PROMPT EXACTLY HERE
+    # (Prompt is exactly as you provided – I’ve kept it untouched)
     prompt = f"""
-
 Extract structured HR information from this resume.
 
 Return only information supported by the resume.
@@ -459,675 +347,178 @@ The resume is the source of truth.
 RESUME:
 
 {raw_text}
-
 """
-
     response = client.models.generate_content(
         model=MODEL,
         contents=prompt,
-        config={
-            "response_mime_type": "application/json",
-            "response_schema": resume_schema
-        }
+        config={"response_mime_type": "application/json", "response_schema": resume_schema}
     )
-
     return json.loads(response.text)
 
-
-# ============================================================
-# DATES
-# ============================================================
-
-def parse_start_date(value):
-
-    return datetime.strptime(
-        value.strip(),
-        "%Y-%m"
-    )
-
-
+# === DATE HELPERS ===
+def parse_start_date(value): return datetime.strptime(value.strip(), "%Y-%m")
 def parse_end_date(value):
-
-    value = value.strip().lower()
-
-    if value in [
-        "present",
-        "current",
-        "ongoing",
-        "till date"
-    ]:
-        return datetime.today()
-
-    return datetime.strptime(
-        value,
-        "%Y-%m"
-    )
-
+    v = value.strip().lower()
+    return datetime.today() if v in ["present", "current", "ongoing", "till date"] else datetime.strptime(v, "%Y-%m")
 
 def get_job_years(job):
-
     try:
-
-        start = parse_start_date(
-            job["start_date"]
-        )
-
-        end = parse_end_date(
-            job["end_date"]
-        )
-
-        return max(
-            0,
-            (end - start).days / 365.25
-        )
-
+        start = parse_start_date(job["start_date"])
+        end = parse_end_date(job["end_date"])
+        return max(0, (end - start).days / 365.25)
     except Exception:
-
         return 0
 
+def sort_jobs(jobs): return sorted(jobs, key=lambda j: parse_start_date(j["start_date"]))
 
-def sort_jobs(jobs):
-
-    return sorted(
-        jobs,
-        key=lambda job: parse_start_date(
-            job["start_date"]
-        )
-    )
-
-
-# ============================================================
-# CALCULATIONS
-# ============================================================
-
+# === EXPERIENCE CALCULATIONS ===
 def experience_by_field(jobs, field, value):
-
-    return round(
-        sum(
-            get_job_years(job)
-            for job in jobs
-            if str(
-                job.get(field, "")
-            ).strip().lower()
-            == value.lower()
-        ),
-        1
-    )
-
+    return round(sum(get_job_years(j) for j in jobs if str(j.get(field, "")).strip().lower() == value.lower()), 1)
 
 def experience_by_boolean_field(jobs, field):
+    return round(sum(get_job_years(j) for j in jobs if j.get(field) is True), 1)
 
-    return round(
-        sum(
-            get_job_years(job)
-            for job in jobs
-            if job.get(field) is True
-        ),
-        1
-    )
-
-
-def total_experience(jobs):
-
-    return round(
-        sum(
-            get_job_years(job)
-            for job in jobs
-        ),
-        1
-    )
-
+def total_experience(jobs): return round(sum(get_job_years(j) for j in jobs), 1)
 
 def employment_gap(jobs):
-
-    jobs = sorted(
-        jobs,
-        key=lambda job: parse_start_date(job["start_date"])
-    )
-
+    jobs = sort_jobs(jobs)
     largest_gap = 0
-
-    for previous, current in zip(jobs, jobs[1:]):
-
-        gap = (
-            parse_start_date(current["start_date"]) -
-            parse_end_date(previous["end_date"])
-        ).days / 365.25
-
-        if gap > largest_gap:
-            largest_gap = gap
-
-    if largest_gap > 1:
-        return round(largest_gap, 1)
-
-    return "No Gap"
-
+    for prev, curr in zip(jobs, jobs[1:]):
+        gap = (parse_start_date(curr["start_date"]) - parse_end_date(prev["end_date"])).days / 365.25
+        if gap > largest_gap: largest_gap = gap
+    return round(largest_gap, 1) if largest_gap > 1 else "No Gap"
 
 def average_tenure(total_years, job_count):
-
     changes = job_count - 1
+    return round(total_years / changes, 1) if changes > 0 else 0
 
-    return (
-        round(total_years / changes, 1)
-        if changes > 0
-        else 0
-    )
-
-
-# ============================================================
-# NIRF
-# ============================================================
-
+# === NIRF RANKING ===
 def normalize_text(value):
-
-    return " ".join(
-        str(value)
-        .lower()
-        .replace("&", "and")
-        .split()
-    )
-
+    return " ".join(str(value).lower().replace("&", "and").split())
 
 def get_nirf_ranking(institute):
-
-    if not institute:
-        return "After 200"
-
+    if not institute: return "After 200"
     target = normalize_text(institute)
-
     try:
-
-        with open(
-            "nirf_rankings.csv",
-            encoding="utf-8-sig"
-        ) as file:
-
-            for row in csv.DictReader(file):
-
-                if normalize_text(
-                    row.get("institute", "")
-                ) == target:
-
-                    category = row.get(
-                        "category",
-                        "After 200"
-                    )
-
-                    if category.lower() == "top 100":
-                        return "top 100"
-
-                    if category.lower() == "101-200":
-                        return "101-200"
-
-                    return category
-
+        with open("nirf_rankings.csv", encoding="utf-8-sig") as f:
+            for row in csv.DictReader(f):
+                if normalize_text(row.get("institute", "")) == target:
+                    cat = row.get("category", "After 200")
+                    if cat.lower() == "top 100": return "top 100"
+                    if cat.lower() == "101-200": return "101-200"
+                    return cat
     except Exception:
-
         pass
-
     return "After 200"
 
-
-# ============================================================
-# EXCEL
-# ============================================================
-
-def write_row(
-    sheet,
-    workbook,
-    cell,
-    label,
-    value
-):
-
+# === EXCEL OUTPUT ===
+def write_row(sheet, workbook, cell, label, value):
     sheet[cell] = value
+    st.write(f"{label}:", value)
 
-    st.write(
-        f"{label}:",
-        value
-    )
+def populate_excel(data, workbook, sheet):
+    # Candidate name
+    write_row(sheet, workbook, "C2", "Candidate Name", data.get("candidate_name", ""))
 
+    # Highest qualification
+    qual = data.get("highest_qualification", {})
+    deg = qual.get("degree", "")
+    spec = qual.get("specialization", "")
+    val = f"{deg} - {spec}" if (spec and spec.lower() not in deg.lower()) else deg
+    write_row(sheet, workbook, "C4", "Highest Qualification", val)
 
+    # Institute & NIRF ranking
+    inst = qual.get("institute", "")
+    st.write("Educational Institute:", inst)
+    write_row(sheet, workbook, "C5", "Institute Ranking", get_nirf_ranking(inst))
 
-
-def populate_excel(
-    data,
-    workbook,
-    sheet
-):
-
-    # -------------------------------
-    # C2 - Candidate
-    # -------------------------------
-
-    write_row(
-        sheet,
-        workbook,
-        "C2",
-        "Candidate Name",
-        data.get(
-            "candidate_name",
-            ""
-        )
-    )
-
-    # -------------------------------
-    # C4 - Qualification
-    # -------------------------------
-
-    qualification = data.get(
-        "highest_qualification",
-        {}
-    )
-    degree = qualification.get(
-        "degree",
-        ""
-    )
-
-    specialization = qualification.get(
-        "specialization",
-        ""
-    )
-
-    value = (
-        f"{degree} - {specialization}"
-        if (
-            specialization
-            and specialization.lower()
-            not in degree.lower()
-        )
-        else degree
-    )
-
-    write_row(
-        sheet,
-        workbook,
-        "C4",
-        "Highest Qualification",
-        value
-    )
-
-    # -------------------------------
-    # C5 - NIRF
-    # -------------------------------
-
-    institute = qualification.get(
-        "institute",
-        ""
-    )
-
-    ranking = get_nirf_ranking(
-        institute
-    )
-
-    st.write(
-        "Educational Institute:",
-        institute
-    )
-
-    write_row(
-        sheet,
-        workbook,
-        "C5",
-        "Institute Ranking",
-        ranking
-    )
-
-    # -------------------------------
-    # JOBS
-    # -------------------------------
-
-    jobs = sort_jobs(
-        data.get(
-            "work_experience",
-            []
-        )
-    )
-
+    # Work experience jobs
+    jobs = sort_jobs(data.get("work_experience", []))
     if debug:
+        st.subheader("Extracted Work Experience")
+        for i, job in enumerate(jobs, 1):
+            st.write(f"Job {i}:", job)
+            st.write("Calculated Years:", round(get_job_years(job), 1))
 
-        st.subheader(
-            "Extracted Work Experience"
-        )
+    total = total_experience(jobs)
+    write_row(sheet, workbook, "C6", "Work Experience", total)
 
-        for i, job in enumerate(
-            jobs,
-            1
-        ):
+    # Organisation categories
+    org_cells = {"Contractor": "C7", "Owner": "C8", "Consultant": "C9", "Freelancer": "C10"}
+    for cat, cell in org_cells.items():
+        write_row(sheet, workbook, cell, f"{cat} Experience", experience_by_field(jobs, "organization_category", cat))
 
-            st.write(
-                f"Job {i}:",
-                job
-            )
+    # MNC and Listed
+    company_cells = {"is_mnc": ("C11", "MNC Experience"), "is_listed": ("C12", "Listed Company Experience")}
+    for field, (cell, label) in company_cells.items():
+        write_row(sheet, workbook, cell, label, experience_by_boolean_field(jobs, field))
 
-            st.write(
-                "Calculated Years:",
-                round(
-                    get_job_years(job),
-                    1
-                )
-            )
-    # -------------------------------
-    # C6 - Total Experience
-    # -------------------------------
+    # India vs outside India
+    india = experience_by_field(jobs, "country", "India")
+    write_row(sheet, workbook, "C13", "India Experience", india)
+    write_row(sheet, workbook, "C14", "Outside India Experience", round(total - india, 1))
 
-    total = total_experience(
-        jobs
-    )
-
-    write_row(
-        sheet,
-        workbook,
-        "C6",
-        "Work Experience",
-        total
-    )
-
-    # -------------------------------
-    # C7-C10 - HR Categories
-    # -------------------------------
-
-    organization_cells = {
-        "Contractor": "C7",
-        "Owner": "C8",
-        "Consultant": "C9",
-        "Freelancer": "C10"
-    }
-
-    for category, cell in (
-        organization_cells.items()
-    ):
-
-        value = experience_by_field(
-            jobs,
-            "organization_category",
-            category
-        )
-
-        write_row(
-            sheet,
-            workbook,
-            cell,
-            f"{category} Experience",
-            value
-        )
-
-    # -------------------------------
-    # C11-C12 - MNC / Listed
-    # -------------------------------
-
-    company_cells = {
-        "is_mnc": (
-            "C11",
-            "MNC Experience"
-        ),
-        "is_listed": (
-            "C12",
-            "Listed Company Experience"
-        )
-    }
-
-    for field, (cell, label) in (
-        company_cells.items()
-    ):
-
-        value = experience_by_boolean_field(
-            jobs,
-            field
-        )
-
-        write_row(
-            sheet,
-            workbook,
-            cell,
-            label,
-            value
-        )
-
-    # -------------------------------
-    # C13-C14 - Country
-    # -------------------------------
-
-    india = experience_by_field(
-        jobs,
-        "country",
-        "India"
-    )
-
-    write_row(
-        sheet,
-        workbook,
-        "C13",
-        "India Experience",
-        india
-    )
-
-    write_row(
-        sheet,
-        workbook,
-        "C14",
-        "Outside India Experience",
-        round(
-            total - india,
-            1
-        )
-    )
-
-    # -------------------------------
-    # C15-C18
-    # -------------------------------
+    # Job changes (based on distinct company names)
     changes = 0
-
-    previous_company = None
-
+    prev_company = None
     for job in jobs:
+        curr = normalize_text(job.get("company", ""))
+        if prev_company is not None and curr != prev_company:
+            changes += 1
+        prev_company = curr
+    write_row(sheet, workbook, "C15", "Job Changes", changes)
 
-        company = normalize_text(
-            job.get(
-                "company",
-                ""
-            )
-        )
+    write_row(sheet, workbook, "C16", "Average Tenure", average_tenure(total, len(jobs)))
+    write_row(sheet, workbook, "C17", "Employment Gap", employment_gap(jobs))
 
-        if previous_company is not None:
+    certs = data.get("certifications", [])
+    write_row(sheet, workbook, "C18", "Certifications", len(certs))
+    if certs:
+        st.subheader("Certifications Extracted")
+        for c in certs:
+            st.write("-", c)
 
-            if company != previous_company:
-                changes += 1
+# === STREAMLIT UI ===
+st.set_page_config(page_title="CV Analyser", page_icon="📄", layout="centered")
+st.markdown("""<style>
+.main-title { text-align: center; font-size: 38px; font-weight: 700; margin-bottom: 5px; }
+.subtitle { text-align: center; color: #666; margin-bottom: 25px; }
+</style>""", unsafe_allow_html=True)
+st.markdown('<div class="main-title">📄 CV Analyzer</div>', unsafe_allow_html=True)
+st.markdown('<div class="subtitle">Upload a CV to analyse experience and generate the HR report.</div>', unsafe_allow_html=True)
+st.info("Upload a PDF resume. The application extracts candidate information using Gemini AI and automatically fills the HR Excel template.")
 
-        previous_company = company
+debug = st.sidebar.checkbox("Show Debug Information")
 
-    
-
-    write_row(
-        sheet,
-        workbook,
-        "C15",
-        "Job Changes",
-        changes
-    )
-
-    write_row(
-        sheet,
-        workbook,
-        "C16",
-        "Average Tenure",
-        average_tenure(
-            total,
-            len(jobs)
-        )
-    )
-
-    write_row(
-        sheet,
-        workbook,
-        "C17",
-        "Employment Gap",
-        employment_gap(jobs)
-    )
-
-    certifications = data.get(
-        "certifications",
-        []
-    )
-
-    write_row(
-        sheet,
-        workbook,
-        "C18",
-        "Certifications",
-        len(certifications)
-    )
-
-    if certifications:
-
-        st.subheader(
-            "Certifications Extracted"
-        )
-
-        for certification in certifications:
-
-            st.write(
-                "-",
-                certification
-            )
-
-
-# ============================================================
-# STREAMLIT
-# ============================================================
-
-
-
-
-st.set_page_config(
-    page_title="CV Analyser",
-    page_icon="📄",
-    layout="centered"
-)
-
-st.markdown(
-    """
-    <style>
-    .main-title {
-        text-align: center;
-        font-size: 38px;
-        font-weight: 700;
-        margin-bottom: 5px;
-    }
-    .subtitle {
-        text-align: center;
-        color: #666;
-        margin-bottom: 25px;
-    }
-    </style>
-    """,
-    unsafe_allow_html=True
-)
-
-st.markdown(
-    '<div class="main-title">📄 CV Analyzer</div>',
-    unsafe_allow_html=True
-)
-
-st.markdown(
-    '<div class="subtitle">Upload a CV to analyse experience and generate the HR report.</div>',
-    unsafe_allow_html=True
-)
-
-st.info(
-    "Upload a PDF resume. The application extracts candidate information using Gemini AI and automatically fills the HR Excel template."
-)
-
-debug = st.sidebar.checkbox(
-    "Show Debug Information"
-)
-
-uploaded_file = st.file_uploader(
-    "Upload CV",
-    type=["pdf"],
-    help="Only PDF files are accepted."
-)
-
+uploaded_file = st.file_uploader("Upload CV", type=["pdf"], help="Only PDF files are accepted.")
 if uploaded_file:
+    st.success(f"Selected: {uploaded_file.name}")
 
-    st.success(
-        f"Selected: {uploaded_file.name}"
-    )
-
-if st.button(
-    "🔍 Analyse CV",
-    use_container_width=True
-):
-
+if st.button("🔍 Analyse CV", use_container_width=True):
     if uploaded_file is None:
-
-        st.warning(
-            "Please upload a PDF CV first."
-        )
-
+        st.warning("Please upload a PDF CV first.")
     else:
-
         try:
-
-            with st.spinner(
-                "Analysing CV and preparing report..."
-            ):
-
-                raw_text = extract_text_from_pdf(
-                    uploaded_file
-                )
-
-                data = extract_resume_data(
-                    raw_text
-                )
-
+            with st.spinner("Analysing CV and preparing report..."):
+                raw_text = extract_text_from_pdf(uploaded_file)
+                data = extract_resume_data(raw_text)
                 if debug:
-                    st.subheader(
-                        "📋 Extracted Information"
-                    )
-
+                    st.subheader("📋 Extracted Information")
                     st.json(data)
-
-                workbook = openpyxl.load_workbook(
-                    "HR_Template.xlsx"
-                )
-
+                workbook = openpyxl.load_workbook("HR_Template.xlsx")
                 sheet = workbook.active
-
-                populate_excel(
-                    data,
-                    workbook,
-                    sheet
-                )
-
-            workbook.save("CV_Output.xlsx")
-            st.success(
-                "✅ CV analysed successfully!"
-            )
-
-            with open(
-                "CV_Output.xlsx",
-                "rb"
-            ) as excel_file:
-
+                populate_excel(data, workbook, sheet)
+                workbook.save("CV_Output.xlsx")
+            st.success("✅ CV analysed successfully!")
+            with open("CV_Output.xlsx", "rb") as excel_file:
                 st.download_button(
                     "⬇️ Download HR Report",
                     data=excel_file,
                     file_name="CV_Output.xlsx",
-                    mime=(
-                        "application/vnd.openxmlformats-"
-                        "officedocument.spreadsheetml.sheet"
-                    ),
+                    mime="application/vnd.openxmlformats-officedocument.spreadsheetml.sheet",
                     use_container_width=True
                 )
-
         except Exception as error:
-
-            st.error(
-                "❌ Something went wrong."
-            )
-
-            with st.expander(
-                "View technical error"
-            ):
+            st.error("❌ Something went wrong.")
+            with st.expander("View technical error"):
                 st.exception(error)
