@@ -552,7 +552,7 @@ st.markdown('<div class="main-title">📄 CV Analyzer</div>', unsafe_allow_html=
 st.markdown('<div class="subtitle">Upload a CV to analyse experience and generate the HR report.</div>', unsafe_allow_html=True)
 st.info("Upload a PDF resume. The application extracts candidate information using Gemini AI and automatically fills the HR Excel template.")
 
-debug = st.sidebar.checkbox("Show Debug Information")
+debug = st.sidebar.checkbox("click the Checkbox  before clicking Analyse CV(s) to show Debug Information")
 
 uploaded_files = st.file_uploader("Upload CV(s)", type=["pdf"], accept_multiple_files= True, help="Only PDF files are accepted.")
 if uploaded_files:
