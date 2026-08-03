@@ -535,8 +535,8 @@ def populate_excel(data, sheet):
     write_row(sheet, "C18", "Certifications", len(certs))
     if certs:
         st.subheader("Certifications Extracted")
-        for c in certs:
-            st.write("-", c)
+        #for c in certs:
+         #   st.write("-", c)
 
 # === STREAMLIT UI ===
 st.set_page_config(page_title="CV Analyzer", page_icon="📄", layout="centered")
