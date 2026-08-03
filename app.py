@@ -539,7 +539,7 @@ def populate_excel(data, sheet):
             st.write("-", c)
 
 # === STREAMLIT UI ===
-st.set_page_config(page_title="CV Analyser", page_icon="📄", layout="centered")
+st.set_page_config(page_title="CV Analyzer", page_icon="📄", layout="centered")
 st.markdown("""<style>
 .main-title { text-align: center; font-size: 38px; font-weight: 700; margin-bottom: 5px; }
 .subtitle { text-align: center; color: #666; margin-bottom: 25px; }
@@ -551,42 +551,51 @@ st.info("Upload a PDF resume. The application extracts candidate information usi
 
 debug = st.sidebar.checkbox("Show Debug Information")
 
-uploaded_file = st.file_uploader("Upload CV", type=["pdf"], help="Only PDF files are accepted.")
-if uploaded_file:
-    st.success(f"Selected: {uploaded_file.name}")
+uploaded_files = st.file_uploader("Upload CV(s)", type=["pdf"], accept_multiple_files= True, help="Only PDF files are accepted.")
+if uploaded_files:
+    st.success(f"Selected {len(uploaded_files)} file(s).")
 
-if st.button("🔍 Analyse CV", use_container_width=True):
-    if uploaded_file is None:
-        st.warning("Please upload a PDF CV first.")
-    else:
-        try:
-            with st.spinner("Analysing CV and preparing report..."):
-                raw_text = extract_text_from_pdf(uploaded_file)
-                data = extract_resume_data(raw_text)
-                
-                if debug:
-                    st.subheader("📋 Extracted JSON Data")
-                    st.json(data)
-                
-                # Load template and populate sheet
-                workbook = openpyxl.load_workbook("HR_Template.xlsx")
-                sheet = workbook.active
-                populate_excel(data, sheet)
-                
-                # Stream write directly into memory buffer (prevents disk IO conflicts)
-                excel_buffer = io.BytesIO()
-                workbook.save(excel_buffer)
-                excel_buffer.seek(0)
+if st.button("🔍 Analyse CVs", use_container_width=True):
+  if not uploaded_files:
+    st.warning("Please upload at least one PDF CV first.")
+  else:
+    # Loop through every uploaded file
+    for uploaded_file in uploaded_files:
+      st.write(f"--- Processing: **{uploaded_file.name}** ---")
+      try:
+        with st.spinner(f"Analysing {uploaded_file.name}..."):
+          raw_text = extract_text_from_pdf(uploaded_file)
+          data = extract_resume_data(raw_text)
 
-            st.success("✅ CV analysed successfully!")
-            st.download_button(
-                "⬇️ Download HR Report",
-                data=excel_buffer,
-                file_name=f"{data.get('candidate_name', 'CV')}_Report.xlsx",
-                mime="application/vnd.openxmlformats-officedocument.spreadsheetml.sheet",
-                use_container_width=True
-            )
-        except Exception as error:
-            st.error("❌ Something went wrong during analysis.")
-            with st.expander("View technical error"):
-                st.exception(error)
+          if debug:
+            st.subheader(f"📋 Extracted JSON Data for {uploaded_file.name}")
+            st.json(data)
+
+          # Load template and populate sheet
+          workbook = openpyxl.load_workbook("HR_Template.xlsx")
+          sheet = workbook.active
+          populate_excel(data, sheet)
+
+          # Stream write directly into memory buffer
+          excel_buffer = io.BytesIO()
+          workbook.save(excel_buffer)
+          excel_buffer.seek(0)
+
+        st.success(f"✅ Finished analyzing {uploaded_file.name}!")
+
+        # Provide a separate download button for each processed file
+        st.download_button(
+            label=f"⬇️ Download Report for {data.get('candidate_name', uploaded_file.name)}",
+            data=excel_buffer,
+            file_name=f"{data.get('candidate_name', 'CV')}_Report.xlsx",
+            mime=(
+                "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet"
+            ),
+            key=uploaded_file.name,  # Unique key is required for multiple buttons in a loop
+            use_container_width=True,
+        )
+
+      except Exception as error:
+        st.error(f"❌ Something went wrong with {uploaded_file.name}.")
+        with st.expander("View technical error"):
+          st.exception(error)
