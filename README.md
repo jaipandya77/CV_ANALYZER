@@ -238,19 +238,6 @@ The application provides:
 
 ---
 
-# 📈 Future Improvements
-
-- Batch resume processing
-- OCR support for scanned resumes
-- Resume scoring and ranking
-- Candidate dashboard
-- DOCX resume support
-- CSV export
-- Database integration
-- Authentication and user accounts
-
----
-
 # 👨‍💻 Author
 
 **Jai Pandya**
