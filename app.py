@@ -1,15 +1,26 @@
-import streamlit as st
-import PyPDF2, csv, json, openpyxl
-from google import genai
+import io
+import json
+import csv
+import re
 from datetime import datetime
+import streamlit as st
+import PyPDF2
+import openpyxl
+from google import genai
 
-# === GEMINI ===
+# === GEMINI CONFIGURATION ===
 client = genai.Client(api_key=st.secrets["GEMINI_API_KEY"])
 MODEL = "gemini-3.5-flash-lite"
 
 # === PDF EXTRACTOR ===
 def extract_text_from_pdf(file):
-    return "\n".join(page.extract_text() or "" for page in PyPDF2.PdfReader(file).pages)
+    reader = PyPDF2.PdfReader(file)
+    text = []
+    for page in reader.pages:
+        extracted = page.extract_text()
+        if extracted:
+            text.append(extracted)
+    return "\n".join(text)
 
 # === RESUME SCHEMA (unchanged) ===
 resume_schema = {
@@ -58,7 +69,6 @@ resume_schema = {
 
 # === GEMINI EXTRACTION ===
 def extract_resume_data(raw_text):
-    # (Prompt is exactly as you provided – I’ve kept it untouched)
     prompt = f"""
 Extract structured HR information from this resume.
 
@@ -360,111 +370,153 @@ RESUME:
     )
     return json.loads(response.text)
 
-# === DATE HELPERS ===
-def parse_start_date(value): return datetime.strptime(value.strip(), "%Y-%m")
+# === DATE HELPERS (With Robust Error Handling) ===
+def parse_start_date(value):
+    if not value or not isinstance(value, str):
+        return datetime(1900, 1, 1)
+    val = value.strip()
+    try:
+        return datetime.strptime(val, "%Y-%m")
+    except ValueError:
+        # Fallback if AI provides YYYY only
+        match = re.search(r"\d{4}", val)
+        if match:
+            return datetime(int(match.group(0)), 1, 1)
+        return datetime(1900, 1, 1)
+
 def parse_end_date(value):
+    if not value or not isinstance(value, str):
+        return datetime.today()
     v = value.strip().lower()
-    return datetime.today() if v in ["present", "current", "ongoing", "till date"] else datetime.strptime(v, "%Y-%m")
+    if v in ["present", "current", "ongoing", "till date", "now"]:
+        return datetime.today()
+    try:
+        return datetime.strptime(v, "%Y-%m")
+    except ValueError:
+        match = re.search(r"\d{4}", v)
+        if match:
+            return datetime(int(match.group(0)), 12, 31)
+        return datetime.today()
 
 def get_job_years(job):
     try:
-        start = parse_start_date(job["start_date"])
-        end = parse_end_date(job["end_date"])
-        if end<start:
+        start = parse_start_date(job.get("start_date", ""))
+        end = parse_end_date(job.get("end_date", ""))
+        if end < start:
             return 0.0
-        return max(0, (end - start).days / 365.25)
-    except Exception:
-        return 0
+        return max(0.0, (end - start).days / 365.25)
+    except Exception as e:
+        return 0.0
 
-
-def sort_jobs(jobs): return sorted(jobs, key=lambda j: parse_start_date(j["start_date"]))
+def sort_jobs(jobs): 
+    return sorted(jobs, key=lambda j: parse_start_date(j.get("start_date", "")))
 
 # === EXPERIENCE CALCULATIONS ===
 def experience_by_field(jobs, field, value):
     return round(sum(get_job_years(j) for j in jobs if str(j.get(field, "")).strip().lower() == value.lower()), 1)
 
+def experience_by_field_not_equal(jobs, field, value):
+    return round(sum(get_job_years(j) for j in jobs if str(j.get(field, "")).strip().lower() != value.lower()), 1)
+
 def experience_by_boolean_field(jobs, field):
     return round(sum(get_job_years(j) for j in jobs if j.get(field) is True), 1)
 
-def total_experience(jobs): return round(sum(get_job_years(j) for j in jobs), 1)
+def total_experience(jobs): 
+    return round(sum(get_job_years(j) for j in jobs), 1)
 
 def employment_gap(jobs):
-    jobs = sort_jobs(jobs)
-    largest_gap = 0
-    for prev, curr in zip(jobs, jobs[1:]):
-        gap = (parse_start_date(curr["start_date"]) - parse_end_date(prev["end_date"])).days / 365.25
-        if gap > largest_gap: largest_gap = gap
-    return round(largest_gap, 1) if largest_gap > 1 else "No Gap"
+    sorted_j = sort_jobs(jobs)
+    if len(sorted_j) < 2:
+        return "No Gap"
+    
+    largest_gap = 0.0
+    for prev, curr in zip(sorted_j, sorted_j[1:]):
+        prev_end = parse_end_date(prev.get("end_date", ""))
+        curr_start = parse_start_date(curr.get("start_date", ""))
+        gap = (curr_start - prev_end).days / 365.25
+        if gap > largest_gap:
+            largest_gap = gap
+            
+    return round(largest_gap, 1) if largest_gap >= 1 else "No Gap"
 
-def average_tenure(total_years, job_count):
-    changes = job_count - 1
-    return round(total_years / changes, 1) if changes > 0 else 0
+def average_tenure(total_years, job_changes):
+    if job_changes <= 0:
+        return round(total_years,1)
+    return round(total_years / job_changes, 1)
 
-# === NIRF RANKING ===
+# === NIRF RANKING (With Partial Matching) ===
 def normalize_text(value):
-    return " ".join(str(value).lower().replace("&", "and").split())
+    if not value:
+        return ""
+    return " ".join(re.sub(r'[^a-zA-Z0-9\s]', '', str(value)).lower().replace("&", "and").split())
 
 def get_nirf_ranking(institute):
-    if not institute: return "After 200"
+    if not institute: 
+        return "After 200"
     target = normalize_text(institute)
     try:
         with open("nirf_rankings.csv", encoding="utf-8-sig") as f:
             for row in csv.DictReader(f):
-                if normalize_text(row.get("institute", "")) == target:
-                    cat = row.get("category", "After 200")
-                    if cat.lower() == "top 100": return "top 100"
-                    if cat.lower() == "101-200": return "101-200"
+                row_inst = normalize_text(row.get("institute", ""))
+                # Flexible partial matching logic
+                if target in row_inst or row_inst in target:
+                    cat = row.get("category", "After 200").strip()
+                    if cat.lower() == "top 100": 
+                        return "top 100"
+                    if cat.lower() == "101-200": 
+                        return "101-200"
                     return cat
     except Exception:
         pass
     return "After 200"
 
 # === EXCEL OUTPUT ===
-def write_row(sheet, workbook, cell, label, value):
+def write_row(sheet, cell, label, value):
     sheet[cell] = value
-    st.write(f"{label}:", value)
+    st.write(f"**{label}:** {value}")
 
-def populate_excel(data, workbook, sheet):
+def populate_excel(data, sheet):
     # Candidate name
-    write_row(sheet, workbook, "C2", "Candidate Name", data.get("candidate_name", ""))
+    write_row(sheet, "C2", "Candidate Name", data.get("candidate_name", ""))
 
     # Highest qualification
     qual = data.get("highest_qualification", {})
     deg = qual.get("degree", "")
     spec = qual.get("specialization", "")
     val = f"{deg} - {spec}" if (spec and spec.lower() not in deg.lower()) else deg
-    write_row(sheet, workbook, "C4", "Highest Qualification", val)
+    write_row(sheet, "C4", "Highest Qualification", val)
 
     # Institute & NIRF ranking
     inst = qual.get("institute", "")
-    st.write("Educational Institute:", inst)
-    write_row(sheet, workbook, "C5", "Institute Ranking", get_nirf_ranking(inst))
+    st.write(f"**Educational Institute:** {inst}")
+    write_row(sheet, "C5", "Institute Ranking", get_nirf_ranking(inst))
 
     # Work experience jobs
     jobs = sort_jobs(data.get("work_experience", []))
     if debug:
         st.subheader("Extracted Work Experience")
         for i, job in enumerate(jobs, 1):
-            st.write(f"Job {i}:", job)
+            st.write(f"**Job {i}:**", job)
             st.write("Calculated Years:", round(get_job_years(job), 1))
 
     total = total_experience(jobs)
-    write_row(sheet, workbook, "C6", "Work Experience", total)
+    write_row(sheet, "C6", "Work Experience", total)
 
     # Organisation categories
     org_cells = {"Contractor": "C7", "Owner": "C8", "Consultant": "C9", "Freelancer": "C10"}
     for cat, cell in org_cells.items():
-        write_row(sheet, workbook, cell, f"{cat} Experience", experience_by_field(jobs, "organization_category", cat))
+        write_row(sheet, cell, f"{cat} Experience", experience_by_field(jobs, "organization_category", cat))
 
     # MNC and Listed
     company_cells = {"is_mnc": ("C11", "MNC Experience"), "is_listed": ("C12", "Listed Company Experience")}
     for field, (cell, label) in company_cells.items():
-        write_row(sheet, workbook, cell, label, experience_by_boolean_field(jobs, field))
+        write_row(sheet, cell, label, experience_by_boolean_field(jobs, field))
 
     # India vs outside India
     india = experience_by_field(jobs, "country", "India")
-    write_row(sheet, workbook, "C13", "India Experience", india)
-    write_row(sheet, workbook, "C14", "Outside India Experience", round(total - india, 1))
+    outside_india = experience_by_field_not_equal(jobs, "country", "India")
+    write_row(sheet, "C13", "India Experience", india)
+    write_row(sheet, "C14", "Outside India Experience", outside_india)
 
     # Job changes (based on distinct company names)
     changes = 0
@@ -474,13 +526,13 @@ def populate_excel(data, workbook, sheet):
         if prev_company is not None and curr != prev_company:
             changes += 1
         prev_company = curr
-    write_row(sheet, workbook, "C15", "Job Changes", changes)
+    write_row(sheet, "C15", "Job Changes", changes)
 
-    write_row(sheet, workbook, "C16", "Average Tenure", average_tenure(total, len(jobs)))
-    write_row(sheet, workbook, "C17", "Employment Gap", employment_gap(jobs))
+    write_row(sheet, "C16", "Average Tenure", average_tenure(total,changes))
+    write_row(sheet, "C17", "Employment Gap", employment_gap(jobs))
 
     certs = data.get("certifications", [])
-    write_row(sheet, workbook, "C18", "Certifications", len(certs))
+    write_row(sheet, "C18", "Certifications", len(certs))
     if certs:
         st.subheader("Certifications Extracted")
         for c in certs:
@@ -492,6 +544,7 @@ st.markdown("""<style>
 .main-title { text-align: center; font-size: 38px; font-weight: 700; margin-bottom: 5px; }
 .subtitle { text-align: center; color: #666; margin-bottom: 25px; }
 </style>""", unsafe_allow_html=True)
+
 st.markdown('<div class="main-title">📄 CV Analyzer</div>', unsafe_allow_html=True)
 st.markdown('<div class="subtitle">Upload a CV to analyse experience and generate the HR report.</div>', unsafe_allow_html=True)
 st.info("Upload a PDF resume. The application extracts candidate information using Gemini AI and automatically fills the HR Excel template.")
@@ -510,23 +563,30 @@ if st.button("🔍 Analyse CV", use_container_width=True):
             with st.spinner("Analysing CV and preparing report..."):
                 raw_text = extract_text_from_pdf(uploaded_file)
                 data = extract_resume_data(raw_text)
+                
                 if debug:
-                    st.subheader("📋 Extracted Information")
+                    st.subheader("📋 Extracted JSON Data")
                     st.json(data)
+                
+                # Load template and populate sheet
                 workbook = openpyxl.load_workbook("HR_Template.xlsx")
                 sheet = workbook.active
-                populate_excel(data, workbook, sheet)
-                workbook.save("CV_Output.xlsx")
+                populate_excel(data, sheet)
+                
+                # Stream write directly into memory buffer (prevents disk IO conflicts)
+                excel_buffer = io.BytesIO()
+                workbook.save(excel_buffer)
+                excel_buffer.seek(0)
+
             st.success("✅ CV analysed successfully!")
-            with open("CV_Output.xlsx", "rb") as excel_file:
-                st.download_button(
-                    "⬇️ Download HR Report",
-                    data=excel_file,
-                    file_name="CV_Output.xlsx",
-                    mime="application/vnd.openxmlformats-officedocument.spreadsheetml.sheet",
-                    use_container_width=True
-                )
+            st.download_button(
+                "⬇️ Download HR Report",
+                data=excel_buffer,
+                file_name=f"{data.get('candidate_name', 'CV')}_Report.xlsx",
+                mime="application/vnd.openxmlformats-officedocument.spreadsheetml.sheet",
+                use_container_width=True
+            )
         except Exception as error:
-            st.error("❌ Something went wrong.")
+            st.error("❌ Something went wrong during analysis.")
             with st.expander("View technical error"):
                 st.exception(error)
