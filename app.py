@@ -473,7 +473,8 @@ def get_nirf_ranking(institute):
 # === EXCEL OUTPUT ===
 def write_row(sheet, cell, label, value):
     sheet[cell] = value
-    #st.write(f"**{label}:** {value}")
+    if debug:
+        st.write(f"**{label}:** {value}")
 
 def populate_excel(data, sheet):
     # Candidate name
@@ -488,7 +489,8 @@ def populate_excel(data, sheet):
 
     # Institute & NIRF ranking
     inst = qual.get("institute", "")
-    st.write(f"**Educational Institute:** {inst}")
+    if debug:
+        st.write(f"**Educational Institute:** {inst}")
     write_row(sheet, "C5", "Institute Ranking", get_nirf_ranking(inst))
 
     # Work experience jobs
@@ -533,10 +535,11 @@ def populate_excel(data, sheet):
 
     certs = data.get("certifications", [])
     write_row(sheet, "C18", "Certifications", len(certs))
-    if certs:
-        st.subheader("Certifications Extracted")
-        #for c in certs:
-         #   st.write("-", c)
+    if debug:
+        if certs:
+            st.subheader("Certifications Extracted")
+            for c in certs:
+                st.write("-", c)
 
 # === STREAMLIT UI ===
 st.set_page_config(page_title="CV Analyzer", page_icon="📄", layout="centered")
