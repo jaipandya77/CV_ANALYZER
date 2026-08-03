@@ -79,7 +79,7 @@ All business logic is implemented in Python, including:
 - Employment gap detection
 - Job changes
 - Average tenure
-- NIRF institute ranking lookup
+- NIRF overall ranking lookup
 - Organization-wise experience
 - India/Outside India experience
 - MNC & Listed company experience
