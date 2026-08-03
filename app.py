@@ -473,7 +473,7 @@ def get_nirf_ranking(institute):
 # === EXCEL OUTPUT ===
 def write_row(sheet, cell, label, value):
     sheet[cell] = value
-    st.write(f"**{label}:** {value}")
+    #st.write(f"**{label}:** {value}")
 
 def populate_excel(data, sheet):
     # Candidate name
