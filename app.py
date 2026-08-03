@@ -87,6 +87,11 @@ January 2018 -> 2018-01
 June 2020 -> 2020-06
 14/12/2020 -> 2020-12
 
+CRITICAL DATE RULE:
+- end_date MUST ALWAYS be equal to or later than start_date.
+- Never output an end_date that takes place before the start_date.
+- If a date digit looks ambiguous (e.g., 2016 vs 2006), cross-reference with surrounding job history to ensure chronological consistency.
+
 If currently employed:
 
 "Present"
@@ -365,9 +370,12 @@ def get_job_years(job):
     try:
         start = parse_start_date(job["start_date"])
         end = parse_end_date(job["end_date"])
+        if end<start:
+            return 0.0
         return max(0, (end - start).days / 365.25)
     except Exception:
         return 0
+
 
 def sort_jobs(jobs): return sorted(jobs, key=lambda j: parse_start_date(j["start_date"]))
 
