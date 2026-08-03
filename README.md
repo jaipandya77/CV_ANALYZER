@@ -1,70 +1,87 @@
+# 📄 CV Analyzer
 
-# CV Analyzer
+An AI-powered web application that extracts information from PDF resumes and automatically generates a structured HR report in Excel format.
 
-An AI-powered web application that analyzes PDF resumes and automatically populates a predefined HR Excel template.
-
-Built using **Python**, **Streamlit**, **Google Gemini API (Free Tier)**, and **OpenPyXL**, the application extracts structured candidate information from resumes and performs HR-specific calculations before generating a ready-to-download Excel report.
+Built using **Python**, **Streamlit**, **Google Gemini API (Free Tier)**, and **OpenPyXL**, the application converts unstructured resumes into structured data and performs HR-specific calculations before populating a predefined Excel template.
 
 ---
 
-## Features
+## ✨ Features
 
 - 📄 Upload resumes in PDF format
-- 🤖 AI-powered resume information extraction using Google Gemini
-- 📊 Automatic HR Excel template population
-- 🎓 Detects highest qualification and educational institute
-- 🏫 Looks up NIRF institute rankings
+- 🤖 AI-powered information extraction using Google Gemini
+- 📋 Automatic HR Excel report generation
+- 🎓 Extracts highest qualification
+- 🏫 Identifies educational institute
+- 📊 Finds NIRF institute ranking
 - 💼 Calculates total work experience
-- 📈 Calculates experience as:
+- 🏗 Calculates experience as:
   - Contractor
   - Owner
   - Consultant
   - Freelancer
-- 🌍 Calculates experience:
-  - In India
-  - Outside India
 - 🏢 Calculates experience in:
   - MNCs
   - Listed Companies
+- 🌍 Calculates:
+  - Experience in India
+  - Experience outside India
 - 🔄 Calculates number of job changes
 - ⏳ Calculates average tenure
-- ⚠️ Detects employment gaps (only if greater than 1 year)
-- 📜 Counts certifications
+- ⚠ Detects employment gaps (only when greater than or equal to 1 year)
+- 📜 Counts professional certifications
 - 📥 Download the completed HR Excel report
+- 🛠 Optional Debug Mode for viewing extracted JSON and work experience
 
 ---
 
-# Technologies Used
+# 🛠 Technologies Used
 
 - Python
 - Streamlit
 - Google Gemini API (Free Tier)
-- Gemini 2.5 Flash
 - PyPDF2
 - OpenPyXL
+- CSV (NIRF Rankings Dataset)
 
 ---
 
-# AI Model
+# 🤖 AI Model
 
-This project uses **Google Gemini 2.5 Flash** through the **Google Gemini API (Free Tier)** for extracting structured information from resumes.
+This project uses the **Google Gemini API (Free Tier)** for extracting structured information from resumes.
 
-The AI model is used **only for extracting information** from the resume.
+The AI is responsible **only for information extraction**.
 
-All business logic, including:
+It extracts:
 
-- Work experience calculation
+- Candidate Name
+- Highest Qualification
+- Educational Institute
+- Work Experience
+- Company Details
+- Dates
+- Country
+- Certifications
+
+The AI **does not perform any calculations**.
+
+All business logic is implemented in Python, including:
+
+- Total experience calculation
 - Employment gap detection
-- Job change calculation
-- Average tenure calculation
+- Job changes
+- Average tenure
 - NIRF institute ranking lookup
+- Organization-wise experience
+- India/Outside India experience
+- MNC & Listed company experience
 - Excel report generation
 
-is implemented entirely in Python, ensuring accurate and deterministic results.
+This approach keeps calculations deterministic, accurate, and independent of AI responses.
 
 ---
 
-# Project Structure
+# 📂 Project Structure
 
 ```
 CV-Analyzer/
@@ -75,26 +92,26 @@ CV-Analyzer/
 ├── requirements.txt
 ├── README.md
 ├── .gitignore
-
+└── assets/
 ```
 
 ---
 
-# Installation
+# 🚀 Installation
 
-## Clone the repository
+Clone the repository
 
 ```bash
 git clone https://github.com/YOUR_USERNAME/CV-Analyzer.git
 ```
 
-Move into the project directory.
+Move into the project directory
 
 ```bash
 cd CV-Analyzer
 ```
 
-Install the required packages.
+Install dependencies
 
 ```bash
 pip install -r requirements.txt
@@ -102,144 +119,135 @@ pip install -r requirements.txt
 
 ---
 
-# Configure API Key
+# 🔑 Configure API Key
 
-This application uses **Streamlit Secrets** to securely store the Google Gemini API key.
+This application uses **Streamlit Secrets** to securely store the Gemini API key.
 
-After deploying the application on **Streamlit Community Cloud**:
+For local development, create:
 
-1. Open your deployed application.
-2. Navigate to **Settings → Secrets**.
-3. Add your Gemini API key in the following format:
+```
+.streamlit/secrets.toml
+```
+
+Add:
 
 ```toml
 GEMINI_API_KEY = "YOUR_GEMINI_API_KEY"
 ```
 
-The application securely reads the API key from Streamlit Secrets, ensuring that sensitive credentials are never stored in the source code or GitHub repository.
+When deploying to **Streamlit Community Cloud**, add the same secret through:
+
+**App Settings → Secrets**
+
+The application securely reads the API key using Streamlit Secrets without exposing it in the source code.
 
 ---
 
-# Running the Application
-
-Run the application locally using:
+# ▶ Running the Application
 
 ```bash
 streamlit run app.py
 ```
 
-The application will automatically open in your default web browser.
+The application will automatically open in your browser.
 
 ---
 
-# Application Workflow
+# 🔄 Application Workflow
 
 ```
-             PDF Resume
-                  │
-                  ▼
-      Extract Text using PyPDF2
-                  │
-                  ▼
-      Google Gemini 2.5 Flash API
-                  │
-                  ▼
-       Structured JSON Response
-                  │
-                  ▼
+               PDF Resume
+                    │
+                    ▼
+         Text Extraction (PyPDF2)
+                    │
+                    ▼
+     Google Gemini API (Free Tier)
+                    │
+                    ▼
+       Structured JSON Extraction
+                    │
+                    ▼
       Python Business Logic Layer
-                  │
-                  ▼
-   HR Calculations & Validations
-                  │
-                  ▼
- Populate HR Excel Template
-                  │
-                  ▼
- Download Completed Excel Report
+                    │
+                    ▼
+    HR Calculations & Validations
+                    │
+                    ▼
+     Populate Excel HR Template
+                    │
+                    ▼
+      Download Completed Report
 ```
 
 ---
 
-# Business Rules
+# 📊 Business Rules
 
-The application follows the following HR business rules:
+The application follows these HR-specific business rules:
 
-- Employment gaps are reported **only if the gap exceeds one year**.
+- Employment gaps are reported only when the gap is **greater than or equal to one year**.
 - Average tenure is calculated as:
 
 ```
-Average Tenure = Total Experience ÷ Number of Job Changes
+Average Tenure = Total Experience ÷ Job Changes
 ```
 
-- Educational institute ranking is determined using the included NIRF rankings dataset.
-- AI is responsible only for information extraction.
-- All calculations and validations are performed in Python.
+- NIRF institute rankings are retrieved using the included CSV dataset.
+- Work experience is calculated from employment dates.
+- Job changes are calculated by detecting changes in employer.
+- AI performs extraction only.
+- Python performs every calculation and validation.
 
 ---
 
-# Why Google Gemini?
+# 🧠 Why Google Gemini?
 
-Instead of building a rule-based parser using regular expressions, this project uses **Google Gemini 2.5 Flash** because it can accurately understand resumes with different layouts and formats.
+Instead of relying on rule-based parsing or regular expressions, this project uses Google Gemini because it can understand resumes with different layouts and formats.
 
-Benefits include:
+Advantages include:
 
-- Supports resumes with varying structures
-- Extracts structured JSON directly
-- Free API tier suitable for learning and small projects
+- Supports multiple resume formats
+- Produces structured JSON output
 - Fast inference
-- Easy integration with Python
+- Free API tier for learning and small projects
+- Easy Python integration
 
 ---
 
-# Future Improvements
+# 🖥 User Interface
+
+The application provides:
+
+- Simple PDF upload interface
+- Loading spinner during analysis
+- Success and error notifications
+- Downloadable Excel report
+- Optional Debug Mode to inspect extracted JSON and intermediate calculations
+
+---
+
+# 📈 Future Improvements
 
 - Batch resume processing
-- OCR support for scanned PDF resumes
+- OCR support for scanned resumes
 - Resume scoring and ranking
 - Candidate dashboard
+- DOCX resume support
+- CSV export
 - Database integration
-- Support for DOCX resumes
-- Export results to CSV
-- Multi-user authentication
+- Authentication and user accounts
 
 ---
 
-# Screenshots
-
-Add screenshots of the application inside an `assets` folder.
-
-Example:
-
-```
-assets/
-├── home.png
-├── upload.png
-├── output.png
-```
-
-Then display them like this:
-
-```markdown
-## Home Screen
-
-![Home](assets/home.png)
-
-## Generated Report
-
-![Output](assets/output.png)
-```
-
----
-
-# Author
+# 👨‍💻 Author
 
 **Jai Pandya**
 
-This project was developed as my first Python application to automate HR resume screening by combining AI-powered information extraction with automated Excel report generation using Streamlit.
+CV Analyzer is my first Python project, developed to automate HR resume screening by combining AI-powered resume information extraction with Python-based business logic and Excel automation.
 
 ---
 
-# License
+# 📄 License
 
-This project is intended for educational, demonstration, and learning purposes.
+This project is intended for educational, learning, and demonstration purposes.
