@@ -5,10 +5,18 @@ An AI-powered web application that extracts information from PDF resumes and aut
 Built using **Python**, **Streamlit**, **Google Gemini API (Free Tier)**, and **OpenPyXL**, the application converts unstructured resumes into structured data and performs HR-specific calculations before populating a predefined Excel template.
 
 ---
+---
+
+### 🌐 **[Click Here to Try the Live Web App](https://cvanalyzer7.streamlit.app/)**
+
+*(Or use this visual badge format)*:
+[![Streamlit App](https://static.streamlit.io/badges/streamlit_badge_black_white.svg)](https://cvanalyzer7.streamlit.app/)
+
+---
 
 ## ✨ Features
 
-- 📄 Upload resumes in PDF format
+- 📄 Upload multiple resumes in PDF format simultaneously
 - 🤖 AI-powered information extraction using Google Gemini
 - 📋 Automatic HR Excel report generation
 - 🎓 Extracts highest qualification
@@ -156,7 +164,7 @@ The application will automatically open in your browser.
 # 🔄 Application Workflow
 
 ```
-               PDF Resume
+              One or More PDF Resume
                     │
                     ▼
          Text Extraction (PyPDF2)
@@ -177,7 +185,10 @@ The application will automatically open in your browser.
      Populate Excel HR Template
                     │
                     ▼
-      Download Completed Report
+    Generate Individual Excel Reports
+                    │
+                    ▼
+              Download Reports
 ```
 
 ---
