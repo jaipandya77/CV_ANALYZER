@@ -8,11 +8,11 @@ import PyPDF2
 import openpyxl
 from google import genai
 
-# === GEMINI CONFIGURATION ===
+# Setup the Gemini API client using secure streamlit secrets
 client = genai.Client(api_key=st.secrets["GEMINI_API_KEY"])
 MODEL = "gemini-3.5-flash-lite"
 
-# === PDF EXTRACTOR ===
+# Helper to read raw text content out of uploaded candidate PDF documents page-by-page
 def extract_text_from_pdf(file):
     reader = PyPDF2.PdfReader(file)
     text = []
@@ -22,7 +22,7 @@ def extract_text_from_pdf(file):
             text.append(extracted)
     return "\n".join(text)
 
-# === RESUME SCHEMA (unchanged) ===
+# Schema definition enforcing strict structured output from the LLM
 resume_schema = {
     "type": "object",
     "properties": {
@@ -67,7 +67,7 @@ resume_schema = {
     "required": ["candidate_name", "highest_qualification", "work_experience", "certifications"]
 }
 
-# === GEMINI EXTRACTION ===
+# Passes unstructured text to the model to extract clean JSON properties based on prompt guidelines
 def extract_resume_data(raw_text):
     prompt = f"""
 Extract structured HR information from this resume.
@@ -370,7 +370,7 @@ RESUME:
     )
     return json.loads(response.text)
 
-# === DATE HELPERS (With Robust Error Handling) ===
+# Safely parse start timelines into standard datetime objects with fallback handling
 def parse_start_date(value):
     if not value or not isinstance(value, str):
         return datetime(1900, 1, 1)
@@ -378,12 +378,12 @@ def parse_start_date(value):
     try:
         return datetime.strptime(val, "%Y-%m")
     except ValueError:
-        # Fallback if AI provides YYYY only
         match = re.search(r"\d{4}", val)
         if match:
             return datetime(int(match.group(0)), 1, 1)
         return datetime(1900, 1, 1)
 
+# Safely parse end timelines, mapping open-ended terms like 'Present' to today's date
 def parse_end_date(value):
     if not value or not isinstance(value, str):
         return datetime.today()
@@ -398,6 +398,7 @@ def parse_end_date(value):
             return datetime(int(match.group(0)), 12, 31)
         return datetime.today()
 
+# Compute exact duration in fractional years between a job's start and end timestamps
 def get_job_years(job):
     try:
         start = parse_start_date(job.get("start_date", ""))
@@ -408,22 +409,27 @@ def get_job_years(job):
     except Exception as e:
         return 0.0
 
+# Sort work history entries chronologically based on starting timelines
 def sort_jobs(jobs): 
     return sorted(jobs, key=lambda j: parse_start_date(j.get("start_date", "")))
 
-# === EXPERIENCE CALCULATIONS ===
+# Aggregates overall work duration matching a specific metadata key and value pair
 def experience_by_field(jobs, field, value):
     return round(sum(get_job_years(j) for j in jobs if str(j.get(field, "")).strip().lower() == value.lower()), 1)
 
+# Aggregates experience duration for jobs where a metadata field does not equal a given value
 def experience_by_field_not_equal(jobs, field, value):
     return round(sum(get_job_years(j) for j in jobs if str(j.get(field, "")).strip().lower() != value.lower()), 1)
 
+# Sums up duration for entries where a specific boolean field evaluates to True
 def experience_by_boolean_field(jobs, field):
     return round(sum(get_job_years(j) for j in jobs if j.get(field) is True), 1)
 
+# Calculates cumulative professional experience across all extracted roles
 def total_experience(jobs): 
     return round(sum(get_job_years(j) for j in jobs), 1)
 
+# Scans sorted work history to identify the largest career gap exceeding a 1-year threshold
 def employment_gap(jobs):
     sorted_j = sort_jobs(jobs)
     if len(sorted_j) < 2:
@@ -439,17 +445,19 @@ def employment_gap(jobs):
             
     return round(largest_gap, 1) if largest_gap >= 1 else "No Gap"
 
+# Computes average job duration given cumulative years and total employer transitions
 def average_tenure(total_years, job_changes):
     if job_changes <= 0:
         return round(total_years,1)
     return round(total_years / job_changes, 1)
 
-# === NIRF RANKING (With Partial Matching) ===
+# Cleans text strings to standardize formats for matching algorithms
 def normalize_text(value):
     if not value:
         return ""
     return " ".join(re.sub(r'[^a-zA-Z0-9\s]', '', str(value)).lower().replace("&", "and").split())
 
+# Cross-references institute names against the NIRF ranking dataset using partial string matching
 def get_nirf_ranking(institute):
     if not institute: 
         return "After 200"
@@ -458,7 +466,6 @@ def get_nirf_ranking(institute):
         with open("nirf_rankings.csv", encoding="utf-8-sig") as f:
             for row in csv.DictReader(f):
                 row_inst = normalize_text(row.get("institute", ""))
-                # Flexible partial matching logic
                 if target in row_inst or row_inst in target:
                     cat = row.get("category", "After 200").strip()
                     if cat.lower() == "top 100": 
@@ -470,12 +477,13 @@ def get_nirf_ranking(institute):
         pass
     return "After 200"
 
-# === EXCEL OUTPUT ===
+# Updates individual cells in the Excel workbook and logs info if debug mode is active
 def write_row(sheet, cell, label, value):
     sheet[cell] = value
     if debug:
         st.write(f"**{label}:** {value}")
 
+# Coordinates the population of the template workbook cells using parsed candidate metrics
 def populate_excel(data, sheet):
     # Candidate name
     write_row(sheet, "C2", "Candidate Name", data.get("candidate_name", ""))
@@ -541,7 +549,7 @@ def populate_excel(data, sheet):
             for c in certs:
                 st.write("-", c)
 
-# === STREAMLIT UI ===
+# Configure the core visual parameters and layout of the Streamlit web interface
 st.set_page_config(page_title="CV Analyzer", page_icon="📄", layout="centered")
 st.markdown("""<style>
 .main-title { text-align: center; font-size: 38px; font-weight: 700; margin-bottom: 5px; }
