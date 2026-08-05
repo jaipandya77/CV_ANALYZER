@@ -33,7 +33,7 @@ Built using **Python**, **Streamlit**, **Google Gemini API (Free Tier)**, and **
   - Listed Companies
 - 🌍 Calculates:
   - Experience in India
-  - Experience outside India
+  - Experience outside India (ignores jobs where the country is unknown)
 - 🔄 Calculates number of job changes
 - ⏳ Calculates average tenure
 - ⚠ Detects employment gaps (only when greater than or equal to 1 year)
