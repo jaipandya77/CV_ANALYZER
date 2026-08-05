@@ -533,6 +533,8 @@ def populate_excel(data, sheet):
     prev_company = None
     for job in jobs:
         curr = normalize_text(job.get("company", ""))
+        if not curr:
+            continue 
         if prev_company is not None and curr != prev_company:
             changes += 1
         prev_company = curr
