@@ -419,7 +419,7 @@ def experience_by_field(jobs, field, value):
 
 # Aggregates experience duration for jobs where a metadata field does not equal a given value
 def experience_by_field_not_equal(jobs, field, value):
-    return round(sum(get_job_years(j) for j in jobs if str(j.get(field, "")).strip().lower() != value.lower()), 1)
+    return round(sum(get_job_years(j)for j in jobs if j.get(field) and str(j.get(field, "")).strip().lower() != value.lower()), 1)
 
 # Sums up duration for entries where a specific boolean field evaluates to True
 def experience_by_boolean_field(jobs, field):
@@ -490,8 +490,9 @@ def populate_excel(data, sheet):
 
     # Highest qualification
     qual = data.get("highest_qualification", {})
-    deg = qual.get("degree", "")
-    spec = qual.get("specialization", "")
+    deg = str(qual.get("degree") or "")
+    spec = str(qual.get("specialization") or "")
+
     val = f"{deg} - {spec}" if (spec and spec.lower() not in deg.lower()) else deg
     write_row(sheet, "C4", "Highest Qualification", val)
 
