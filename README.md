@@ -206,6 +206,7 @@ Average Tenure = Total Experience ÷ Job Changes
 
 - NIRF institute rankings are retrieved using the included CSV dataset.
 - Work experience is calculated from employment dates.
+- Jobs with an unknown or missing country are excluded from both India and Outside India experience calculations.
 - Job changes are calculated by detecting changes in employer.
 - AI performs extraction only.
 - Python performs every calculation and validation.
