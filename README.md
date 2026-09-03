@@ -1,256 +1,356 @@
-📄 CV Analyzer V8.5
-An AI-assisted recruitment web application that extracts factual
-information from PDF resumes, performs deterministic HR calculations,
-maps candidates to Skill Groomers master data, generates structured
-HR Excel reports, and helps HR transfer approved candidate information
-into the existing Skill Groomers recruitment system.
-Built using Python, Streamlit, Google Gemini API,
-PyPDF2, OpenPyXL, and a lightweight Chrome Extension.
----
-🌐 Click Here to Try the Live Web App
-![Streamlit](https://static.streamlit.io/badges/streamlit_badge_black_white.svg)
----
-✨ Features
-📄 Upload and analyze multiple PDF resumes
-🤖 Factual CV extraction using Google Gemini
-📑 Direct PDF analysis for complex resume layouts
-👤 Candidate contact and personal information extraction
-💼 Complete employment-history extraction
-🎓 Highest completed qualification extraction
-🧠 Full factual CV skills and certifications
-📊 Deterministic total-experience calculation
-🏢 Distinct employer count
-🔄 Job-change calculation
-⏳ Average-tenure calculation
-🔗 Skill Groomers master-data mapping
-🧩 Core Role, Functional Area, Role and Industry suggestions
-📍 Current and native location mapping
-🗺 Missing-state inference from supported cities where appropriate
-🛠 Deterministic Skill Groomers Key Skills mapping
-👥 HR review and editing before approval
-⚠ Mapping conflict/unresolved-field warnings
-📋 HR Excel template generation
-📥 Individual candidate Excel downloads
-🌐 Skill Groomers candidate-form autofill through a Chrome extension
-🔐 HR-controlled final Save
-🛠 Optional Developer Debug mode
----
-🛠 Technologies Used
-Python
-Streamlit
-Google Gemini API / Google GenAI Python SDK
-PyPDF2
-OpenPyXL
-JSON
-Skill Groomers Master Data
-Chrome Extension
-JavaScript
----
-🤖 AI Model
-Google Gemini is used primarily for understanding the resume and
-extracting factual structured information.
-It extracts information such as candidate name, email, phone numbers,
-DOB, gender, locations, employment history, designations, employment
-dates, education, skills, certifications and salary when explicitly
-stated.
-The AI does not calculate experience-related HR metrics.
-Python performs deterministic calculations and business rules including:
-Total Experience
-Number of Employers
-Number of Job Changes
-Average Tenure
-Current and previous distinct employment selection
-Skill Groomers mapping
-Excel report generation
+# CV Analyzer V8.5
+
+> **AI-assisted CV analysis, deterministic HR calculations, Skill
+> Groomers mapping, and browser-assisted candidate entry --- with HR
+> retaining final approval.**
+
+[![Streamlit](https://static.streamlit.io/badges/streamlit_badge_black_white.svg)](https://cvanalyzer7.streamlit.app/)
+
+**Live Application:** https://cvanalyzer7.streamlit.app/
+
+------------------------------------------------------------------------
+
+## Overview
+
+CV Analyzer V8.5 is a recruitment-support application built to reduce
+repetitive CV review and candidate-entry work.
+
+The application reads PDF resumes, extracts factual candidate
+information with Google Gemini, performs HR calculations in Python, maps
+supported values to Skill Groomers master data, generates an Excel
+report, and helps transfer approved information into the existing Skill
+Groomers candidate form.
+
+The system deliberately separates **CV facts**, **calculated values**,
+and **Skill Groomers classifications** so that mapped website values do
+not overwrite factual resume information.
+
+### Core workflow
+
 ``` text
 PDF Resume
-    │
-    ▼
-Google Gemini
-    │
-    ▼
-Factual Structured Data
-    │
-    ▼
-Python Validation & Normalization
-    │
-    ▼
-Deterministic Business Logic
-    │
-    ▼
-Verified Candidate Data
+    |
+    v
+Gemini Factual Extraction
+    |
+    v
+Python Validation & Calculations
+    |
+    +----------------------+
+    |                      |
+    v                      v
+Excel Report       Skill Groomers Mapping
+                           |
+                           v
+                       HR Review
+                           |
+                           v
+                  Chrome Extension Autofill
+                           |
+                           v
+                    HR Final Verification
+                           |
+                           v
+                  Skill Groomers Save
 ```
----
-🗂 Skill Groomers Master Data
-The application uses:
+
+------------------------------------------------------------------------
+
+## Key Features
+
+  -----------------------------------------------------------------------
+  Area                                Capability
+  ----------------------------------- -----------------------------------
+  Resume analysis                     Multiple PDF CV uploads and direct
+                                      PDF analysis
+
+  AI extraction                       Candidate details, employment,
+                                      education, skills and
+                                      certifications
+
+  Experience                          Deterministic total-experience
+                                      calculation with overlap handling
+
+  Date precision                      Year-only employment periods are
+                                      treated as approximate rather than
+                                      fabricated as exact months
+
+  Employment                          Distinct employer count, job
+                                      changes, current and previous
+                                      employer
+
+  Average tenure                      Deterministic calculation using the
+                                      configured HR business rule
+
+  Skills                              Full factual CV skills plus
+                                      separate Skill Groomers Key Skills
+
+  Classification                      Core Role, Functional Area, Role
+                                      and Industry mapping
+
+  Functional Area                     Designation-first mapping so career
+                                      track takes priority over
+                                      supporting keywords
+
+  Location                            Skill Groomers city/state mapping
+                                      with controlled state inference
+
+  Review                              Editable classifications, warnings
+                                      and unresolved-field checks
+
+  Reporting                           Individual Excel reports using the
+                                      HR template
+
+  Integration                         Chrome extension fills supported
+                                      Skill Groomers candidate fields
+
+  Control                             HR reviews and performs the final
+                                      Skill Groomers Save
+  -----------------------------------------------------------------------
+
+------------------------------------------------------------------------
+
+# HR / Normal User Guide
+
+This section is for HR team members using the deployed application.
+
+**You do not need Python, an API key, VS Code, or developer tools to use
+the deployed CV Analyzer.**
+
+## 1. One-Time Chrome Extension Setup
+
+Before using **Open Skill Groomers & Fill Candidate** on a computer for
+the first time, install the internal Skill Groomers Autofill extension.
+
+This setup is required **once per Chrome profile**.
+
+### Install
+
+1.  Obtain `skillgroomers_autofill_easy_reliable.zip`.
+2.  Extract the ZIP to a **permanent folder** on the computer.
+3.  Open Chrome.
+4.  Enter `chrome://extensions` in the address bar.
+5.  Turn on **Developer mode**.
+6.  Click **Load unpacked**.
+7.  Select the extracted folder that directly contains `manifest.json`.
+8.  Confirm that **Skill Groomers Autofill** appears and is enabled.
+
+The selected folder should look like:
+
 ``` text
-skillgroomers_master_data_v6.json
+skillgroomers_autofill_extension/
+├── manifest.json
+├── content.js
+└── README.txt
 ```
-as its local Skill Groomers master-data source.
-It contains the supported website values used by the mapping system,
-including:
-Core Roles
-Key Skills / Keywords
-Industries
-Locations
-Functional Areas
-Sub Functional Areas
-Roles
-Education Qualifications
-Courses
-Specializations
-The master data preserves Skill Groomers website labels so factual CV
-information can be translated into classifications supported by the
-recruitment system.
-``` text
-CV Information
-      │
-      ▼
-Python Mapping Rules
-      │
-      ▼
-Skill Groomers Master JSON
-      │
-      ▼
-Supported SG Classification
-      │
-      ▼
-HR Review
-```
-Factual CV information remains separate from the Skill Groomers
-representation.
----
-🛠 Key Skills Mapping
-The application maintains two separate skill representations.
-CV Key Skills
-All genuine factual skills extracted from the candidate's resume can be
-displayed to HR.
-Skill Groomers Key Skills
-Python scans the CV for supported Skill Groomers keywords and aliases,
-ranks evidenced matches deterministically, applies skill-family
-deduplication, and selects a maximum of 4 Skill Groomers Key Skills.
-If fewer than four supported skills are clearly evidenced, the
-application can return fewer rather than inventing another skill.
----
-📍 Location Mapping
-Candidate locations are mapped against supported Skill Groomers
-locations.
-If an exact and unambiguous supported city is present but the state is
-missing, Python can infer the state for the Skill Groomers mapping
-only.
-``` text
-CV: Mumbai / State not provided
-          ↓
-SG: Mumbai / Maharashtra
-```
-The inferred state does not overwrite factual CV data. Conflicting
-city/state information can be flagged for HR review.
----
-👤 Using the Application --- HR / Normal Users
-This section is for HR team members and other users who only need to use
-the deployed application. No Python setup or API configuration is
-required.
-🌐 1. Open the CV Analyzer
-Open:
-CV Analyzer
-🧩 One-Time Chrome Extension Setup
-Before using Open Skill Groomers & Fill Candidate for the first time on a computer, install the internal Skill Groomers Autofill Chrome extension. This only needs to be done once per Chrome profile.
-Extract `skillgroomers_autofill_easy_reliable.zip` to a permanent folder.
-Open `chrome://extensions` in Chrome.
-Turn on Developer mode.
-Click Load unpacked.
-Select the extracted folder that directly contains `manifest.json`.
-Confirm that the Skill Groomers Autofill extension appears and is enabled.
-The selected folder should directly contain:
-```text
-manifest.json
-content.js
-README.txt
-```
-> Keep the extracted extension folder in its permanent location after installation. Moving or deleting it can stop the unpacked extension from working.
-After this one-time setup, normal users do not need to manually open or operate the extension. When an approved candidate is sent from the Analyzer, the extension fills the supported Skill Groomers fields automatically. HR still reviews the form and clicks Skill Groomers's own Save button.
----
-📄 2. Upload CVs
+
+> **Important:** Do not move or delete this folder after installation.
+> Chrome needs the unpacked extension files to remain at that location.
+
+After installation, HR does **not** need to manually operate the
+extension. The CV Analyzer sends approved candidate information to it
+when **Open Skill Groomers & Fill Candidate** is used.
+
+The extension does not perform the final Save.
+
+------------------------------------------------------------------------
+
+## 2. Open the CV Analyzer
+
+Open the deployed application:
+
+**https://cvanalyzer7.streamlit.app/**
+
+------------------------------------------------------------------------
+
+## 3. Upload CVs
+
 Upload one or more PDF resumes and click:
+
 ``` text
-🔍 Analyse CVs
+Analyse CVs
 ```
-🤖 3. Wait for Analysis
-The application extracts candidate facts and employment history,
-calculates HR metrics, extracts education and skills, and creates Skill
-Groomers classification suggestions.
-👤 4. Review Candidate Information
-Verify:
-Candidate and contact details
-Current and previous employment
-Education
-Total Experience
-Number of Employers
-Number of Job Changes
-Average Tenure
-CV Key Skills
-🧩 5. Review Skill Groomers Classification
-Review the suggested:
-Core Role
-Functional Area
-Role
-Industry
-Current City / State
-Native City / State
-Education
-Skill Groomers Key Skills
-Correct uncertain or conflicting values when required.
-⚠️ 6. Check Review Warnings
-Resolve any mapping conflicts or unresolved fields before approval. HR
-should still verify important candidate information even when no
-automatic conflict is detected.
-✅ 7. Approve the Candidate
-Approve the candidate after reviewing the factual information and Skill
-Groomers classifications.
-📥 8. Download the Excel Report
-Use Download Excel Report to download the populated HR report.
-🌐 9. Open Skill Groomers
+
+The application analyzes each candidate separately.
+
+------------------------------------------------------------------------
+
+## 4. Review Candidate Facts
+
+Verify the information extracted from the CV, especially:
+
+-   Candidate name and contact information
+-   Current and previous employment
+-   Designations and employers
+-   Employment dates
+-   Education
+-   Total Experience
+-   Number of Employers
+-   Number of Job Changes
+-   Average Tenure
+-   CV Key Skills
+
+Missing factual information should remain blank rather than being
+guessed.
+
+### Date-precision warning
+
+Some CVs provide employment dates such as:
+
+``` text
+2017 - 2020
+```
+
+without months.
+
+In these cases, an exact month-level duration cannot be proven from the
+CV. The application can therefore treat experience as **approximate / a
+range** instead of silently inventing January or December dates.
+
+CVs containing proper month-level dates can continue to receive exact
+month-based calculations.
+
+------------------------------------------------------------------------
+
+## 5. Review Skill Groomers Classification
+
+The application separately maps the candidate to supported Skill
+Groomers values.
+
+Review:
+
+-   Core Role
+-   Functional Area / Sub Functional Area / Role
+-   Industry
+-   Skill Groomers Key Skills
+-   Current City / State
+-   Native City / State
+-   Education mapping
+
+### Functional Area mapping
+
+Functional Area mapping prioritizes the candidate's **actual career
+track**:
+
+``` text
+Current / Recent Designations
+          |
+          v
+Designation History
+          |
+          v
+Professional Domain
+          |
+          v
+Supporting Skills
+```
+
+For example, a Project Manager working in Civil / Interior Fit-Out
+should not become a Safety professional merely because the CV mentions
+safety compliance.
+
+------------------------------------------------------------------------
+
+## 6. Check Warnings
+
+If the application identifies a conflict, ambiguous mapping, missing
+required value, or insufficient date precision, review it before
+approval.
+
+A clean result may show:
+
+``` text
+No mapping conflicts or unresolved fields detected.
+```
+
+This means no automatic mapping issue was found; HR should still verify
+important candidate information.
+
+------------------------------------------------------------------------
+
+## 7. Approve Candidate
+
+After reviewing the factual information and Skill Groomers
+classifications, approve the candidate in the CV Analyzer.
+
+------------------------------------------------------------------------
+
+## 8. Download Excel Report
+
+Use **Download Excel Report** when an HR Excel copy is required.
+
+The Excel output keeps factual CV information separate from Skill
+Groomers-specific mapped classifications.
+
+------------------------------------------------------------------------
+
+## 9. Open Skill Groomers & Autofill
+
 Click:
+
 ``` text
 Open Skill Groomers & Fill Candidate
 ```
-The Skill Groomers Add Candidate page opens and the internally installed
-Chrome extension fills supported fields.
-🔎 10. Review the Skill Groomers Form
-Verify the populated candidate details, classifications, locations,
-experience, employment and education. Complete any intentionally manual
-or unresolved fields.
-💾 11. Save
-Use Skill Groomers's own Save button after verification.
-The Analyzer and extension do not automatically perform the final
-Save.
-Normal User Workflow
+
+The Skill Groomers Add Candidate page opens.
+
+The installed Chrome extension then fills the supported candidate fields
+using the **reviewed information** from the Analyzer.
+
+------------------------------------------------------------------------
+
+## 10. Final HR Review & Save
+
+Check the populated Skill Groomers form.
+
+Complete any intentionally manual or unresolved fields, then use Skill
+Groomers's own **Save** button.
+
 ``` text
-Open CV Analyzer
-      ↓
-Upload PDF CV
-      ↓
-Analyse CV
-      ↓
-Review CV Facts
-      ↓
-Review SG Classifications
-      ↓
-Approve Candidate
-   ↙       ↘
-Excel    Open Skill Groomers
-              ↓
-         Form Autofilled
-              ↓
-          HR Reviews
-              ↓
-         HR Clicks Save
+Analyzer prepares
+       |
+       v
+Extension fills
+       |
+       v
+HR verifies
+       |
+       v
+Skill Groomers saves
 ```
----
-👨‍💻 Developer Setup & Usage
-This section is for developers who need to install, run, maintain, debug
-or modify the application.
-📂 Project Structure
+
+**The Analyzer and Chrome extension do not automatically submit the
+candidate.**
+
+------------------------------------------------------------------------
+
+# Developer Guide
+
+## Technology Stack
+
+  Component                          Purpose
+  ---------------------------------- ------------------------------------------------
+  Python                             Validation, calculations and application logic
+  Streamlit                          Web application UI
+  Google Gemini / Google GenAI SDK   Factual resume understanding
+  PyPDF2                             PDF text extraction
+  OpenPyXL                           Excel template population
+  JSON                               Skill Groomers master-data storage
+  JavaScript                         Chrome extension autofill bridge
+
+### Tested dependencies
+
+``` txt
+streamlit==1.60.0
+google-genai==2.14.0
+PyPDF2==3.0.1
+openpyxl==3.1.5
+```
+
+------------------------------------------------------------------------
+
+## Project Structure
+
 ``` text
 CV-Analyzer/
 │
@@ -269,188 +369,436 @@ CV-Analyzer/
 └── .streamlit/
     └── secrets.toml
 ```
-Main Components
-`app.py` --- Main Streamlit application.
-`resume1.xlsx` --- Excel template populated for analyzed candidates.
-`skillgroomers_master_data_v6.json` --- Local Skill Groomers
-master-data snapshot required by the mapping system.
-`skillgroomers_autofill_extension/` --- Browser-side extension for
-filling approved candidate information into Skill Groomers.
-`.streamlit/secrets.toml` --- Local Gemini API credentials. This
-file must NOT be committed to GitHub.
-📦 Requirements
-Tested dependencies:
-``` txt
-streamlit==1.60.0
-google-genai==2.14.0
-PyPDF2==3.0.1
-openpyxl==3.1.5
-```
-Install them with:
+
+### Important files
+
+**`app.py`**\
+Main Streamlit application.
+
+**`resume1.xlsx`**\
+HR Excel template populated by the application.
+
+**`skillgroomers_master_data_v6.json`**\
+Local snapshot of supported Skill Groomers classifications and IDs.
+
+**`skillgroomers_autofill_extension/`**\
+Browser-side bridge used to fill reviewed candidate information into
+Skill Groomers.
+
+**`.streamlit/secrets.toml`**\
+Local secret configuration. Do not commit this file.
+
+------------------------------------------------------------------------
+
+## Local Setup
+
+### 1. Install dependencies
+
 ``` bash
 pip install -r requirements.txt
 ```
-🚀 1. Clone the Repository
-``` bash
-git clone https://github.com/YOUR_USERNAME/CV-Analyzer.git
-cd CV-Analyzer
-```
-🔑 2. Configure Gemini API Key
+
+### 2. Configure Gemini
+
 Create:
+
 ``` text
 .streamlit/secrets.toml
 ```
+
 Add:
+
 ``` toml
 GEMINI_API_KEY = "YOUR_GEMINI_API_KEY"
 ```
-Do not hardcode the real key in `app.py`. Keep `.streamlit/` excluded
-through `.gitignore`.
-For Streamlit Community Cloud, add the same secret through App
-Settings → Secrets.
-▶ 3. Run Locally
+
+Never hardcode the real API key in `app.py`.
+
+### 3. Run the application
+
 ``` bash
 streamlit run app.py
 ```
-🗂 4. Master Data
-Keep `skillgroomers_master_data_v6.json` with the application. When
-updating it, preserve the exact Skill Groomers labels and IDs expected
-by the website.
-🧩 5. Install the Chrome Extension
-Extract:
-``` text
-skillgroomers_autofill_easy_reliable.zip
+
+If the Python filename contains parentheses on PowerShell, quote it:
+
+``` powershell
+streamlit run "app(3).py"
 ```
-Keep the extracted folder in a permanent location. The selected folder
-must directly contain:
+
+Using `app.py` as the main filename is recommended.
+
+------------------------------------------------------------------------
+
+## Chrome Extension --- Developer Setup
+
+Install the unpacked extension through:
+
+``` text
+Chrome
+  -> chrome://extensions
+  -> Developer mode
+  -> Load unpacked
+  -> folder containing manifest.json
+```
+
+### Updating the extension
+
+When extension files change:
+
+1.  Replace the changed files in the existing permanent extension
+    folder.
+2.  Open `chrome://extensions`.
+3.  Find **Skill Groomers Autofill**.
+4.  Click **Reload**.
+
+Normally, the extension does not need to be uninstalled and installed
+again.
+
+------------------------------------------------------------------------
+
+# System Design
+
+## Factual Extraction vs Classification
+
+The application maintains two separate representations.
+
+### Factual CV record
+
+Contains information supported by the candidate's resume.
+
+Examples:
+
+-   Employer names
+-   Designations
+-   Employment dates
+-   Education
+-   Locations
+-   Skills
+-   Certifications
+
+### Skill Groomers representation
+
+Translates supported facts into website classifications such as:
+
+-   Core Role
+-   Functional Area
+-   Role
+-   Industry
+-   Key Skills
+-   Location
+-   Education
+
+``` text
+CV Facts
+   |
+   +-----------> Excel / HR Record
+   |
+   v
+Deterministic Mapping
+   |
+   v
+Skill Groomers Master Data
+   |
+   v
+HR Review
+```
+
+**Mapping must not overwrite or contaminate the factual CV record.**
+
+------------------------------------------------------------------------
+
+## Experience Calculation
+
+For employment dates with sufficient precision:
+
+-   Employment calendar months are counted inclusively.
+-   Overlapping months count once.
+-   Gaps are excluded.
+-   Current employment runs through the current calendar month.
+
+This uses the **union of covered employment months**, preventing
+concurrent roles from being double-counted.
+
+### Year-only employment
+
+A CV may state:
+
+``` text
+2008 - 2011
+```
+
+but that does not reveal whether employment began in January, June,
+December, or another month.
+
+The application should therefore preserve that uncertainty instead of
+manufacturing missing months.
+
+------------------------------------------------------------------------
+
+## Number of Employers
+
+The same employer counts once even when the candidate held multiple
+positions within that organization.
+
+------------------------------------------------------------------------
+
+## Number of Job Changes
+
+A job change is counted when the candidate moves between distinct
+employers.
+
+------------------------------------------------------------------------
+
+## Average Tenure
+
+The configured HR rule is:
+
+``` text
+Average Tenure = Total Experience / Number of Job Changes
+```
+
+When Total Experience is approximate because source dates lack month
+precision, Average Tenure should also be treated as approximate.
+
+------------------------------------------------------------------------
+
+## Current & Previous Employment
+
+-   **Current Employment:** most recent/current position.
+-   **Previous Employment:** previous position at a different employer.
+
+------------------------------------------------------------------------
+
+## Education
+
+The highest **completed** qualification is used.
+
+A qualification that is still being pursued does not replace the highest
+completed qualification.
+
+------------------------------------------------------------------------
+
+# Skill Groomers Mapping
+
+## Key Skills
+
+The system intentionally keeps two skill sets.
+
+### CV Key Skills
+
+Factual skills extracted from the resume are displayed to HR without
+applying Skill Groomers's four-keyword limit.
+
+### Skill Groomers Key Skills
+
+Python scans the resume for supported Skill Groomers keywords and
+aliases, ranks evidenced matches deterministically, removes redundant
+skill-family matches, and selects up to **4** supported keywords.
+
+If only two or three supported keywords are clearly evidenced, the
+system can return fewer rather than inventing another skill.
+
+------------------------------------------------------------------------
+
+## Functional Area
+
+Functional Area is **designation-first**.
+
+Strong designation evidence takes priority over generic supporting words
+in the CV.
+
+For example:
+
+``` text
+Project Manager / Fit-Out / Civil / Site
+              |
+              v
+Project Management / Site Engineering
+```
+
+A Safety classification should require genuine Safety/HSE/EHS
+designation evidence rather than merely finding the word `safety` in
+responsibilities.
+
+The same principle applies to other specialist classifications such as
+QA/QC.
+
+------------------------------------------------------------------------
+
+## Location
+
+Locations are matched against supported Skill Groomers values.
+
+When an exact, unambiguous supported city is present but the state is
+missing, the system can infer the corresponding state for the **Skill
+Groomers representation only**.
+
+Example:
+
+``` text
+CV:
+City  = Mumbai
+State = not provided
+
+SG mapping:
+City  = Mumbai
+State = Maharashtra
+```
+
+The inferred state does not rewrite the factual CV state.
+
+Conflicting city/state information should be flagged for HR review
+rather than silently overwritten.
+
+------------------------------------------------------------------------
+
+# Skill Groomers Integration
+
+The integration is intentionally human-controlled.
+
+``` text
+CV Analyzer
+     |
+     v
+HR Approves Candidate
+     |
+     v
+Open Skill Groomers & Fill Candidate
+     |
+     v
+Chrome Extension
+     |
+     v
+Supported Fields Autofilled
+     |
+     v
+HR Reviews
+     |
+     v
+HR Clicks Save
+```
+
+The extension **does not**:
+
+-   Log into Skill Groomers
+-   Store Skill Groomers usernames or passwords
+-   Read or store authentication cookies
+-   Bypass CAPTCHA
+-   Automatically click Save
+-   Automatically submit candidates
+
+Final production submission remains under HR control.
+
+------------------------------------------------------------------------
+
+# Security
+
+-   Gemini API keys are stored outside source code.
+-   `.streamlit/secrets.toml` should remain excluded from Git.
+-   `.env` files should remain excluded from Git.
+-   Skill Groomers credentials are not stored by the Analyzer.
+-   The browser extension does not perform authentication.
+-   CAPTCHA is not bypassed.
+-   Candidate information is reviewed before final submission.
+-   Skill Groomers retains control of the final Save.
+
+Recommended `.gitignore` entries:
+
+``` gitignore
+# Python
+__pycache__/
+*.pyc
+
+# Secrets
+.env
+.env.*
+.streamlit/
+
+# Virtual environments
+.venv/
+venv/
+env/
+
+# Temporary Excel files
+~$*.xlsx
+
+# Editor / OS
+.vscode/
+.idea/
+.DS_Store
+Thumbs.db
+```
+
+------------------------------------------------------------------------
+
+# Troubleshooting
+
+### `Open Skill Groomers & Fill Candidate` opens the page but does not fill
+
+Check that:
+
+1.  The Chrome extension is installed.
+2.  It is enabled in `chrome://extensions`.
+3.  The permanent extension folder has not been moved or deleted.
+4.  The latest extension files are installed.
+5.  After an extension update, **Reload** was clicked in
+    `chrome://extensions`.
+
+### Chrome says `Manifest file is missing or unreadable`
+
+You probably selected the outer extracted folder.
+
+Select the folder that **directly contains**:
+
 ``` text
 manifest.json
 content.js
 README.txt
 ```
-Then:
-Open `chrome://extensions`.
-Enable Developer mode.
-Click Load unpacked.
-Select the folder containing `manifest.json`.
-🔄 6. Update the Extension
-Replace changed files in the existing extension folder.
-Open `chrome://extensions`.
-Find the Skill Groomers Autofill extension.
-Click Reload.
-The extension normally does not need to be uninstalled.
----
-🌐 Skill Groomers Integration
-``` text
-CV Analyzer
-    ↓
-HR Approves Candidate
-    ↓
-Open Skill Groomers & Fill Candidate
-    ↓
-Chrome Extension
-    ↓
-Candidate Form Autofilled
-    ↓
-HR Reviews
-    ↓
-HR Clicks Save
+
+### Streamlit says the Python file has no extension
+
+When a PowerShell filename contains parentheses, use quotes:
+
+``` powershell
+streamlit run "app(3).py"
 ```
-The extension fills supported fields and selects matching Skill Groomers
-options. It leaves unresolved options for HR review.
-It does not:
-Log into Skill Groomers
-Store usernames or passwords
-Read or store authentication cookies
-Bypass CAPTCHA
-Automatically click Save
-Automatically submit candidates
-Final production submission remains under HR control.
----
-📊 Business Rules
-💼 Total Experience
-Employment months are counted inclusively.
-Overlapping calendar months count once.
-Employment gaps do not count.
-Present employment is calculated through the current calendar month.
-🏢 Number of Employers
-The same employer counts once even when the candidate held multiple
-roles there.
-🔄 Number of Job Changes
-A job change is counted when the candidate moves between distinct
-employers.
-⏳ Average Tenure
+
+Prefer renaming the main application to:
+
 ``` text
-Average Tenure = Total Experience ÷ Number of Job Changes
+app.py
 ```
-💼 Current and Previous Employment
-The most recent position is current employment. Previous employment
-means the previous distinct employer.
-🎓 Education
-The highest completed qualification is used. A pursuing
-qualification does not replace it.
-❓ Missing Information
-Missing factual information is left blank rather than guessed.
----
-📋 Excel Report
-The application populates the HR Excel template with factual candidate
-information and calculated HR metrics. Each analyzed candidate can be
-downloaded as an individual Excel report.
----
-🖥 User Interface
-The application provides:
-Multiple PDF upload
-Candidate analysis progress
-Candidate summary cards
-Factual candidate information
-Full factual CV Key Skills
-Calculated HR metrics
-Editable Skill Groomers classifications
-Mapping warnings
-Candidate approval
-Individual Excel downloads
-Skill Groomers autofill
-Optional Developer Debug tools
----
-🛠 Developer Debug Mode
-Developer Debug mode can show:
-CV / Excel facts
-Raw Gemini JSON
-Normalized factual data
-Skill Groomers mapping summary
-Full mapping details
-Candidate payload preview
-It is intended for development and troubleshooting rather than normal HR
-use.
----
-🔐 Security
-Gemini API keys are not hardcoded
-`.streamlit/secrets.toml` is excluded from Git
-Environment files should be excluded from Git
-Skill Groomers passwords are not stored by the Analyzer
-The extension does not perform authentication
-Authentication cookies are not stored by the extension
-CAPTCHA is not bypassed
-HR reviews candidate information before submission
-Final Skill Groomers Save remains under HR control
----
-🎯 Design Principle
-``` text
-AI understands.
-Python calculates.
-Master data classifies.
-HR verifies.
-Skill Groomers saves.
+
+and run:
+
+``` powershell
+streamlit run app.py
 ```
----
-👨‍💻 Author
-Jai Pandya
-CV Analyzer was developed as a Python recruitment automation project
-combining AI-powered resume understanding with deterministic Python
-calculations, Excel automation, Skill Groomers master-data
-classification, an HR review workflow, and browser-assisted candidate
-form filling.
----
-📄 License
+
+------------------------------------------------------------------------
+
+# Design Principle
+
+> **AI understands the resume. Python calculates the metrics. Master
+> data classifies supported values. HR verifies the candidate. Skill
+> Groomers performs the final Save.**
+
+------------------------------------------------------------------------
+
+## Author
+
+**Jai Pandya**
+
+CV Analyzer V8.5 is a Python recruitment-automation project combining
+AI-assisted resume understanding, deterministic HR calculations, Excel
+automation, Skill Groomers master-data classification, human review, and
+browser-assisted candidate-form filling.
+
+------------------------------------------------------------------------
+
+## License
+
 This project is intended for internal, educational, learning, and
 demonstration purposes.
