@@ -350,25 +350,55 @@ def _month_index(year, month):
     return (year * 12) + (month - 1)
 
 
+def _is_year_only_date(value):
+    """Return True only when the CV supplied a bare four-digit year."""
+    return bool(re.fullmatch(r"\d{4}", str(value or "").strip()))
+
+
+def has_year_only_employment_dates(jobs):
+    """Whether any employment period lacks month precision in the CV."""
+    return any(
+        _is_year_only_date(job.get("start_date", ""))
+        or _is_year_only_date(job.get("end_date", ""))
+        for job in (jobs or [])
+    )
+
+
 def _job_month_range(job, as_of=None):
     """
     Return the inclusive calendar-month range covered by one job.
 
-    CVs normally provide employment dates only to month precision (YYYY-MM).
-    Therefore July 2017 to December 2018 means every calendar month from
-    2017-07 through 2018-12. Present/current jobs run through the current
-    calendar month.
+    Month-precise dates keep the existing inclusive calendar-month rule.
+    For a CV that gives only years (for example 2017-2020), do NOT silently
+    expand that to Jan 2017-Dec 2020 (48 months). The CV only supports an
+    elapsed-year duration of 3 years, so the calculation uses Jan 2017-Dec
+    2019 (36 months). This avoids adding an unsupported extra year while
+    preserving a deterministic integer-month value for HR calculations.
+
+    The UI separately warns HR whenever year-only dates are present because
+    an exact month-level total cannot be known from that CV.
     """
     as_of = as_of or datetime.today()
-    start = parse_start_date(job.get("start_date", ""))
+    start_value = str(job.get("start_date", "") or "").strip()
+    raw_end_value = str(job.get("end_date", "") or "").strip()
+
+    start = parse_start_date(start_value)
     if start.year == 1900:
         return None
 
-    end_value = str(job.get("end_date", "") or "").strip().lower()
-    if end_value in ["present", "current", "ongoing", "till date", "now"]:
+    end_lower = raw_end_value.lower()
+    if end_lower in ["present", "current", "ongoing", "till date", "now"]:
         end = as_of
+    elif _is_year_only_date(raw_end_value):
+        end_year = int(raw_end_value)
+        if _is_year_only_date(start_value) and end_year > start.year:
+            # '2017-2020' supports 3 elapsed years, not four full calendar years.
+            end = datetime(end_year - 1, 12, 1)
+        else:
+            # Same-year/partially precise ranges remain explicitly approximate.
+            end = datetime(end_year, 12, 1)
     else:
-        end = parse_end_date(job.get("end_date", ""))
+        end = parse_end_date(raw_end_value)
 
     if end < start:
         return None
@@ -392,6 +422,50 @@ def total_experience_months(jobs, as_of=None):
         start_idx, end_idx = month_range
         covered_months.update(range(start_idx, end_idx + 1))
     return len(covered_months)
+
+
+def _job_month_range_full_year_assumption(job, as_of=None):
+    """Upper estimate for year-only dates using Jan-Dec calendar coverage."""
+    as_of = as_of or datetime.today()
+    start = parse_start_date(job.get("start_date", ""))
+    if start.year == 1900:
+        return None
+
+    end_value = str(job.get("end_date", "") or "").strip().lower()
+    if end_value in ["present", "current", "ongoing", "till date", "now"]:
+        end = as_of
+    else:
+        end = parse_end_date(job.get("end_date", ""))
+
+    if end < start:
+        return None
+    return _month_index(start.year, start.month), _month_index(end.year, end.month)
+
+
+def total_experience_months_upper_estimate(jobs, as_of=None):
+    """
+    Upper estimate used only when a CV contains bare year-only employment dates.
+    Month-precise CVs are unaffected. Overlapping months are still counted once.
+    """
+    covered_months = set()
+    for job in jobs or []:
+        month_range = _job_month_range_full_year_assumption(job, as_of=as_of)
+        if not month_range:
+            continue
+        start_idx, end_idx = month_range
+        covered_months.update(range(start_idx, end_idx + 1))
+    return len(covered_months)
+
+
+def experience_display(jobs, as_of=None):
+    """Return exact experience or an approximate lower-to-upper range."""
+    lower = total_experience_months(jobs, as_of=as_of)
+    if not has_year_only_employment_dates(jobs):
+        return format_months(lower)
+    upper = max(lower, total_experience_months_upper_estimate(jobs, as_of=as_of))
+    if upper == lower:
+        return f"Approx. {format_months(lower)}"
+    return f"Approx. {format_months(lower)} – {format_months(upper)}"
 
 
 def split_months(total_months):
@@ -710,6 +784,18 @@ def _combined_professional_evidence(data):
     return " ".join(str(v) for v in fields if v)
 
 
+def _recent_designation_evidence(data, limit=5):
+    """Return evidence from actual CV job titles only, newest roles weighted by inclusion.
+
+    This deliberately excludes AI-generated role/core-role labels and skills. Functional
+    Area is a career-track classification, so a supporting skill such as Safety or QA
+    must not override repeated designations such as Project Manager or Site Engineer.
+    """
+    jobs = sort_jobs(data.get("work_experience", []) or [])
+    recent_designations = [str(j.get("designation", "") or "") for j in jobs[-limit:]]
+    return normalize_master_text(" ".join(recent_designations))
+
+
 def _designation_evidence(data):
     """Role-centric evidence used for deterministic primary-role decisions.
 
@@ -864,37 +950,56 @@ def map_functional_area(data, source_text=""):
     evidence = _combined_professional_evidence(data)
     evidence_n = normalize_master_text(evidence + " " + (source_text or ""))
     designation_n = _designation_evidence(data)
+    title_n = _recent_designation_evidence(data)
 
-    # Explicit civil/fitout/site-engineering profiles map to the civil/site
-    # hierarchy, not to the telecom-specific Project Manager record.
-    fitout_civil_terms = [
-        "fitout engineer", "fit out engineer", "fitout executive",
-        "civil engineer", "site engineer", "executive engineer"
+    # ------------------------------------------------------------------
+    # DESIGNATION-FIRST FUNCTIONAL AREA ROUTING
+    # ------------------------------------------------------------------
+    # Functional Area represents the candidate's professional track. Actual
+    # CV job titles therefore outrank skills and AI summary labels. Supporting
+    # words such as "safety", "quality" or "project management" must not
+    # reclassify someone whose repeated designation says otherwise.
+
+    civil_context = any(
+        term in evidence_n
+        for term in ["civil", "construction", "interior", "fitout", "fit out", "site execution", "site supervision"]
+    )
+
+    project_site_titles = [
+        "project manager", "project engineer", "fitout engineer", "fit out engineer",
+        "fitout executive", "fit out executive", "interior project",
+        "site engineer", "site supervisor", "civil engineer",
+        "senior executive interior", "executive interior"
     ]
-    if any(term in designation_n for term in fitout_civil_terms) and any(
-        term in evidence_n for term in ["civil", "construction", "interior", "fitout", "site"]
-    ):
+    if any(term in title_n for term in project_site_titles) and civil_context:
         record = _find_functional_id(59)
         if record:
             return {
                 **_functional_record(record),
-                "score": 0.99,
+                "score": 0.995,
                 "matched": True,
                 "review_required": False,
-                "reason": "Civil/fitout/site-engineering profile",
+                "reason": "Current/recent CV designations indicate Civil/Interior Fit-Out/Project-Site career track",
             }
 
-    # High-confidence company-specific semantic rules.
-    # Safety/EHS -> confirmed ID 49.
-    if any(term in evidence_n for term in ["safety", "ehs", "hse", "health safety environment"]):
+    # Safety is a primary Functional Area only when the JOB TITLE itself is a
+    # safety/HSE/EHS title. Merely mentioning safety/compliance in skills or
+    # responsibilities is supporting evidence and must not trigger this route.
+    safety_title_terms = [
+        "safety officer", "safety engineer", "safety manager", "safety executive",
+        "hse officer", "hse engineer", "hse manager", "hse executive",
+        "ehs officer", "ehs engineer", "ehs manager", "ehs executive",
+        "health safety environment"
+    ]
+    if any(term in title_n for term in safety_title_terms):
         record = _find_functional_id(49)
         if record:
             return {
                 **_functional_record(record),
-                "score": 0.99,
+                "score": 0.995,
                 "matched": True,
                 "review_required": False,
-                "reason": "Safety/EHS profile",
+                "reason": "Current/recent CV designation is explicitly Safety/HSE/EHS",
             }
 
     # Construction planning / project-controls profiles -> ID 66.
@@ -930,7 +1035,12 @@ def map_functional_area(data, source_text=""):
         "construction", "civil", "site", "residential", "real estate",
         "building", "rcc", "concrete", "project management"
     ]
-    if any(term in evidence_n for term in qa_terms):
+    qa_title_terms = [
+        "qaqc", "qa qc", "qa/qc", "quality engineer",
+        "quality control engineer", "quality assurance engineer",
+        "quality manager", "qa engineer", "qc engineer"
+    ]
+    if any(term in title_n for term in qa_title_terms):
         target_id = 66 if any(term in evidence_n for term in construction_terms) else 45
         record = _find_functional_id(target_id)
         if record:
@@ -1786,10 +1896,12 @@ def build_skill_groomers_payload_preview(final_data, mapping):
             ),
             "previousDesignation": previous_job.get("designation", "") if previous_job else "",
             "previousEmployer": previous_job.get("company", "") if previous_job else "",
-            "totalExperienceInYears": total_years,
-            "totalExperienceInMonths": remaining_months,
-            "averageTenureInYears": avg_years,
-            "averageTenureInMonths": avg_remaining_months,
+            # A year-only CV cannot support an exact month value in Skill Groomers.
+            # Leave these fields unresolved for HR instead of autofilling a false exact number.
+            "totalExperienceInYears": None if has_year_only_employment_dates(jobs) else total_years,
+            "totalExperienceInMonths": None if has_year_only_employment_dates(jobs) else remaining_months,
+            "averageTenureInYears": None if has_year_only_employment_dates(jobs) else avg_years,
+            "averageTenureInMonths": None if has_year_only_employment_dates(jobs) else avg_remaining_months,
             "totalExperienceAsOfDate": datetime.today().strftime("%Y-%m-%d 00:00:00"),
             "totalNumberOfJobs": str(number_of_employers(jobs)),
             "annualSalary": salary_value,
@@ -1862,7 +1974,7 @@ def populate_excel(data, sheet):
 
     # Total Experience - calculated directly in months
     total_months = total_experience_months(jobs)
-    sheet["C26"] = format_months(total_months)
+    sheet["C26"] = experience_display(jobs)
     sheet["C27"] = datetime.today().strftime("%Y-%m-%d")
 
     num_emp = number_of_employers(jobs)
@@ -1874,7 +1986,12 @@ def populate_excel(data, sheet):
     # Average Tenure = total experience / job changes (HR-requested formula)
     job_changes = compute_job_changes(jobs)
     avg_months = average_tenure_months(total_months, job_changes)
-    sheet["C31"] = format_months(avg_months)
+    if has_year_only_employment_dates(jobs) and job_changes > 0:
+        upper_total = total_experience_months_upper_estimate(jobs)
+        upper_avg = average_tenure_months(upper_total, job_changes)
+        sheet["C31"] = f"Approx. {format_months(avg_months)} – {format_months(upper_avg)}"
+    else:
+        sheet["C31"] = format_months(avg_months)
 
     # Education
     qual = data.get("highest_qualification", {})
@@ -2139,14 +2256,30 @@ def _render_review_card(filename, file_info):
     st.markdown("### 1. Candidate Check")
 
     m1, m2, m3, m4 = st.columns(4)
+    year_only_dates = has_year_only_employment_dates(jobs)
     with m1:
-        _metric_card("Experience", format_months(total_months))
+        _metric_card("Experience*" if year_only_dates else "Experience", experience_display(jobs))
     with m2:
-        _metric_card("Avg. Tenure", format_months(avg_months))
+        if year_only_dates and job_changes > 0:
+            upper_total = total_experience_months_upper_estimate(jobs)
+            upper_avg = average_tenure_months(upper_total, job_changes)
+            avg_display = f"Approx. {format_months(avg_months)} – {format_months(upper_avg)}"
+        else:
+            avg_display = format_months(avg_months)
+        _metric_card("Avg. Tenure*" if year_only_dates else "Avg. Tenure", avg_display)
     with m3:
         _metric_card("Employers", number_of_employers(jobs))
     with m4:
         _metric_card("Job Changes", job_changes)
+
+    if year_only_dates:
+        st.warning(
+            "Some employment dates in this CV contain only a year. "
+            "Exact month-level experience cannot be determined from those periods. "
+            "The app therefore shows an approximate range: the lower estimate uses elapsed-year "
+            "differences, while the upper estimate uses full calendar-year coverage. "
+            "Month-precise jobs still use the normal inclusive-month calculation."
+        )
 
     _info_grid(
         [
