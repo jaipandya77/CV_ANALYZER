@@ -1,0 +1,2276 @@
+{
+  "_meta": {
+    "source": "Skill Groomers production master endpoints supplied by user",
+    "version": 6,
+    "notes": "Exact website spellings preserved. Matching normalizes internally only."
+  },
+  "core_roles": [
+    "Execution",
+    "Planning",
+    "MEP",
+    "Finishing",
+    "Geotechnical",
+    "Contracts",
+    "Billing",
+    "PMO",
+    "Safety",
+    "QAQC",
+    "Design",
+    "Rebar Detailing",
+    "Quantity Estimation",
+    "QA/QC Manager ",
+    "Project coordinator",
+    "sales",
+    "Talent Acquisition/ Recruitment",
+    "Quality control",
+    "Project or Construction Management",
+    "Project Director",
+    "Contracts & Procurement",
+    "Project Manager",
+    "Digital ",
+    "Business Development",
+    "Project Engineer",
+    "Business Development Manager",
+    "Finishing Supervisor ",
+    "Quantity Estimator",
+    "CSA Estimator",
+    "AM HR",
+    "Finance",
+    "Construction Manager",
+    "Safety Officer",
+    "safety manager",
+    "accounts",
+    "scaffolding Inspector",
+    "Civil Engineer",
+    "Quality Engineer",
+    "Project Management",
+    "plant & Machinery",
+    "Deputy safety manager",
+    "corporate safety manager",
+    "civil supervisor",
+    "Manager Planning & Coordination",
+    "Senior Architect",
+    "Site Engineer",
+    "DGM",
+    "HR",
+    "Project Manager - Infra",
+    "Architect",
+    "Estimator",
+    "Quantity Suveyor "
+  ],
+  "keywords": [
+    "Software Developer",
+    "QAQC",
+    "QA",
+    "QC",
+    "QMS",
+    "Quality Control",
+    "Quality Audit",
+    "Planning",
+    "MSP",
+    "Primavera",
+    "safety",
+    "safety manager",
+    "ADIS",
+    "project coordination",
+    "project planning",
+    "project manager",
+    "PM",
+    "project management",
+    "Execution",
+    "Civil",
+    "Finishing",
+    "Handover",
+    "MEP",
+    "MEP Site Engineer",
+    "Design",
+    "MIDAS",
+    "BRIDGE DESIGN",
+    "Site Supervisor",
+    "Civil Engineer",
+    "Civil Site Engineer",
+    "Site Execution Engineer",
+    "HIRA",
+    "HSE",
+    "Audit",
+    "OH&S ",
+    "ISO",
+    "HSE plan",
+    "QC Engineer",
+    "QC Manager",
+    "Senior Safety Officer",
+    "Senior EHS Officer",
+    "sourcing",
+    "site visit",
+    "closing",
+    "lead generation",
+    "client coordination",
+    "sales",
+    "closing sales",
+    "real estate",
+    "site cordination",
+    "site handling",
+    "Autocad",
+    "Talent Acquisition",
+    "Recruitment",
+    "NON IT",
+    "Warehouse",
+    "PEB",
+    "Flooring",
+    "Civil supervisor",
+    "finisher",
+    "negotiation",
+    "Finishing Engineer",
+    "Finishing Site Engineer",
+    "Construction management",
+    "Project Director",
+    "General Manager",
+    "Hospitality Projects",
+    "Contracts",
+    "Procurement",
+    "Logistic Project",
+    "Estimation & Planning",
+    "Safety Head",
+    "basline schedule",
+    "Brand Strategy",
+    "content",
+    "Collaboration",
+    "Business Development",
+    "SEO",
+    "ISO – 45001",
+    "Corporate safety Manager",
+    "Safety Steward",
+    "'Safety Supervisor",
+    "Safety Officer",
+    "Electrical",
+    "Mechanical",
+    "Plumbing",
+    "HVAC",
+    "Firefighting",
+    "Project Head",
+    "interior",
+    "fitout",
+    "hotel project",
+    "villas",
+    "project engineer",
+    "commercial project",
+    "installation ",
+    "plotted project",
+    "property acquisition",
+    "bd",
+    "scheduling",
+    "tracking",
+    "PMO",
+    "BTO",
+    "Oil& Gas",
+    "resorts",
+    "inspection",
+    "PEB projects",
+    "Quantity Estimation",
+    "Billing",
+    "Earthwork Quantification",
+    "Hotel Projects",
+    "quality management",
+    "checklist",
+    "EHS management",
+    "Estimator",
+    "tower crane",
+    "Agtek",
+    "CSA Estimation'",
+    "Plannng Engineer",
+    "Planning Engineer",
+    "Civil Site Supervisor",
+    "Project Execution Engineer",
+    "HR",
+    " Payroll Management",
+    " Employee Relation",
+    " Conducting Trainings",
+    "MBA HR",
+    "Residential",
+    "Plotted development",
+    "bridge",
+    "metro",
+    "elevated corridor",
+    "Infra",
+    "Elevated metro",
+    "Elevated Viaduct",
+    "Highway",
+    "Bridges",
+    "Railway",
+    "Finance manager",
+    "forecasting",
+    "budgeting",
+    "MIS",
+    "accounting",
+    "finance",
+    "Construction Manager",
+    "Accounts Executive",
+    "Scaffolding Inspector",
+    "HSE Officer",
+    "Accounts",
+    "costing",
+    "cash flow",
+    "project incharge",
+    "residential project",
+    "Credit Control",
+    "Credit Finance",
+    "Acounts Receivable",
+    "Accounts Receivable",
+    "report",
+    "barriagator",
+    " REVIT MEP",
+    " Visual lighting",
+    "Erection & commissioning",
+    "repair",
+    "Maintenance",
+    "plant & Machinery",
+    " Budgeting",
+    " Claims",
+    " Change management",
+    " Tender Preparation",
+    "operations",
+    "finishing works",
+    " project planning",
+    " contractor management",
+    " quality assurance",
+    "cost control",
+    "contract  management",
+    " Pre- tender  estimates",
+    " Pre & Post Contracts",
+    " Quantity survey and Execution",
+    "Principal Electrical Engineer - MEP Designs.",
+    "Manager Planning",
+    "Architect",
+    "Civil Engineer  Interior Designer",
+    "site execution",
+    " contractor coordination",
+    " quantity surveying and billing",
+    " quality control",
+    "site management",
+    "DGM",
+    "Site Interior Engineer",
+    "Interior Site Engineer",
+    "Project Manager - Infra",
+    "Real Estate - Infra work",
+    "Finishing Supervisor",
+    "RCC",
+    "Mivan",
+    "ITP",
+    "Documentation",
+    "FIDIC",
+    "RVNL",
+    "Institutional project",
+    "Railway Project",
+    "Gauge Conversion",
+    "Real Estate Projects",
+    "Billing Engineer",
+    "quantity suveying",
+    "Quantity take-off",
+    "QS",
+    "HRBP",
+    "RCC supervisor",
+    "BBS",
+    "MEP Engineer",
+    "RA Bill",
+    "Estimation",
+    "Interior ",
+    "Testing",
+    "HT & LT",
+    "cost estimation",
+    "consultat"
+  ],
+  "industries": [
+    {
+      "id": 1,
+      "name": "Accounting/ Finance",
+      "active": 1
+    },
+    {
+      "id": 2,
+      "name": "Agriculture/ Dairy",
+      "active": 1
+    },
+    {
+      "id": 3,
+      "name": "Advertising/ PR/MR/ Event",
+      "active": 1
+    },
+    {
+      "id": 4,
+      "name": "Ceramics/ Sanitary",
+      "active": 1
+    },
+    {
+      "id": 5,
+      "name": "Chemical/ Petrochemical/ Rubber/ Plastic",
+      "active": 1
+    },
+    {
+      "id": 6,
+      "name": "Construction/Engineering/ Cements/ Metals",
+      "active": 1
+    },
+    {
+      "id": 7,
+      "name": "Consumer Durables",
+      "active": 1
+    },
+    {
+      "id": 8,
+      "name": "Electrical/ Switchgears",
+      "active": 1
+    },
+    {
+      "id": 9,
+      "name": "FMCG/Food/ Beverages",
+      "active": 1
+    },
+    {
+      "id": 10,
+      "name": "Glass",
+      "active": 1
+    },
+    {
+      "id": 11,
+      "name": "IT- Software/ Software Services",
+      "active": 1
+    },
+    {
+      "id": 12,
+      "name": "Media/ Dotcom/ Entertainment",
+      "active": 1
+    },
+    {
+      "id": 13,
+      "name": "Oil and Gas/ Power/ Infrastructure/ Energy",
+      "active": 1
+    },
+    {
+      "id": 14,
+      "name": "Pharma/ Biotech/ Clinical search",
+      "active": 1
+    },
+    {
+      "id": 15,
+      "name": "Printing/ Packaging",
+      "active": 1
+    },
+    {
+      "id": 16,
+      "name": "Real estate / Property",
+      "active": 1
+    },
+    {
+      "id": 17,
+      "name": "Recruitment",
+      "active": 1
+    },
+    {
+      "id": 18,
+      "name": "Retail",
+      "active": 1
+    },
+    {
+      "id": 19,
+      "name": "Telecom/ ISP",
+      "active": 1
+    },
+    {
+      "id": 20,
+      "name": "Wellness/ Fitness/ Sports/ Beauty",
+      "active": 1
+    },
+    {
+      "id": 21,
+      "name": "Textiles/ Garment/ Accessories",
+      "active": 1
+    },
+    {
+      "id": 22,
+      "name": "Papler/ Printing/ Packaging",
+      "active": 1
+    },
+    {
+      "id": 23,
+      "name": "Architect/ Interior Design",
+      "active": 1
+    },
+    {
+      "id": 24,
+      "name": "Animation",
+      "active": 1
+    },
+    {
+      "id": 25,
+      "name": "Auto/ Ancillary",
+      "active": 1
+    },
+    {
+      "id": 26,
+      "name": "Aviation/Aerospace firm",
+      "active": 1
+    },
+    {
+      "id": 27,
+      "name": "Banking/ Financial Services / Broking",
+      "active": 1
+    },
+    {
+      "id": 28,
+      "name": "BPO/ ITES",
+      "active": 1
+    },
+    {
+      "id": 29,
+      "name": "Brewery / Distillery",
+      "active": 1
+    },
+    {
+      "id": 30,
+      "name": "Courier/ Transportation/ Freight",
+      "active": 1
+    },
+    {
+      "id": 31,
+      "name": "Education/ Teaching/ Training",
+      "active": 1
+    },
+    {
+      "id": 32,
+      "name": "Export/ Import",
+      "active": 1
+    },
+    {
+      "id": 33,
+      "name": "Facility Management",
+      "active": 1
+    },
+    {
+      "id": 34,
+      "name": "Fertilizers/ Pesticides",
+      "active": 1
+    },
+    {
+      "id": 35,
+      "name": "Food processing",
+      "active": 1
+    },
+    {
+      "id": 36,
+      "name": "Fresh/ Trainee",
+      "active": 1
+    },
+    {
+      "id": 37,
+      "name": "Gems & Jewellary",
+      "active": 1
+    },
+    {
+      "id": 38,
+      "name": "Defence/ Government",
+      "active": 1
+    },
+    {
+      "id": 39,
+      "name": "Heat Ventilation Air Conditioning",
+      "active": 1
+    },
+    {
+      "id": 40,
+      "name": "Hotel/ Restaurants/ Airlines/ Travel",
+      "active": 1
+    },
+    {
+      "id": 41,
+      "name": "Industrial Products/ Heavy Machinery",
+      "active": 1
+    },
+    {
+      "id": 42,
+      "name": "Insurance",
+      "active": 1
+    },
+    {
+      "id": 43,
+      "name": "Internet/ E- Commerce",
+      "active": 1
+    },
+    {
+      "id": 44,
+      "name": "IT Hardworking/ Networking",
+      "active": 1
+    },
+    {
+      "id": 45,
+      "name": "KPO/ Research/ Analytics",
+      "active": 1
+    },
+    {
+      "id": 46,
+      "name": "Legal",
+      "active": 1
+    },
+    {
+      "id": 47,
+      "name": "Medical/ Healthcare/ Hospital",
+      "active": 1
+    },
+    {
+      "id": 48,
+      "name": "Mining",
+      "active": 1
+    },
+    {
+      "id": 49,
+      "name": "NGO/ Social Services",
+      "active": 1
+    },
+    {
+      "id": 50,
+      "name": "Office equipments/ Automation",
+      "active": 1
+    },
+    {
+      "id": 51,
+      "name": "Paper",
+      "active": 1
+    },
+    {
+      "id": 52,
+      "name": "Security/ Law Enforcement",
+      "active": 1
+    },
+    {
+      "id": 53,
+      "name": "Shipping/ Marine",
+      "active": 1
+    },
+    {
+      "id": 54,
+      "name": "Strategy/ Management Consulting Firm",
+      "active": 1
+    },
+    {
+      "id": 55,
+      "name": "Tyres",
+      "active": 1
+    },
+    {
+      "id": 56,
+      "name": "Water Treatment / Waste Management",
+      "active": 1
+    },
+    {
+      "id": 57,
+      "name": "Semiconductors/ Electronics",
+      "active": 1
+    },
+    {
+      "id": 58,
+      "name": "Others",
+      "active": 1
+    }
+  ],
+  "locations": [
+    {
+      "id": 35,
+      "name": "Uttar Pradesh",
+      "category": "States",
+      "active": 1
+    },
+    {
+      "id": 24,
+      "name": "Manipur",
+      "category": "States",
+      "active": 1
+    },
+    {
+      "id": 25,
+      "name": "Meghalaya",
+      "category": "States",
+      "active": 1
+    },
+    {
+      "id": 26,
+      "name": "Mizoram",
+      "category": "States",
+      "active": 1
+    },
+    {
+      "id": 27,
+      "name": "Nagaland",
+      "category": "States",
+      "active": 1
+    },
+    {
+      "id": 28,
+      "name": "Odisha / Orissa",
+      "category": "States",
+      "active": 1
+    },
+    {
+      "id": 30,
+      "name": "Rajasthan",
+      "category": "States",
+      "active": 1
+    },
+    {
+      "id": 31,
+      "name": "Sikkim",
+      "category": "States",
+      "active": 1
+    },
+    {
+      "id": 32,
+      "name": "Telangana",
+      "category": "States",
+      "active": 1
+    },
+    {
+      "id": 33,
+      "name": "Tripura",
+      "category": "States",
+      "active": 1
+    },
+    {
+      "id": 34,
+      "name": "Union Territories",
+      "category": "States",
+      "active": 1
+    },
+    {
+      "id": 29,
+      "name": "Punjab",
+      "category": "States",
+      "active": 1
+    },
+    {
+      "id": 36,
+      "name": "Uttaranchal",
+      "category": "States",
+      "active": 1
+    },
+    {
+      "id": 37,
+      "name": "West Bengal",
+      "category": "States",
+      "active": 1
+    },
+    {
+      "id": 22,
+      "name": "Kerala",
+      "category": "States",
+      "active": 1
+    },
+    {
+      "id": 9,
+      "name": "Maharashtra",
+      "category": "States",
+      "active": 1
+    },
+    {
+      "id": 10,
+      "name": "Goa",
+      "category": "States",
+      "active": 1
+    },
+    {
+      "id": 11,
+      "name": "Andhra Pradesh",
+      "category": "States",
+      "active": 1
+    },
+    {
+      "id": 12,
+      "name": "Assam",
+      "category": "States",
+      "active": 1
+    },
+    {
+      "id": 13,
+      "name": "Arunachal Pradesh",
+      "category": "States",
+      "active": 1
+    },
+    {
+      "id": 14,
+      "name": "Bihar",
+      "category": "States",
+      "active": 1
+    },
+    {
+      "id": 15,
+      "name": "Chhattisgarh",
+      "category": "States",
+      "active": 1
+    },
+    {
+      "id": 17,
+      "name": "Haryana",
+      "category": "States",
+      "active": 1
+    },
+    {
+      "id": 23,
+      "name": "Madhya Pradesh",
+      "category": "States",
+      "active": 1
+    },
+    {
+      "id": 18,
+      "name": "Himachal Pradesh",
+      "category": "States",
+      "active": 1
+    },
+    {
+      "id": 19,
+      "name": "Jammu & Kashmir",
+      "category": "States",
+      "active": 1
+    },
+    {
+      "id": 20,
+      "name": "Karnataka",
+      "category": "States",
+      "active": 1
+    },
+    {
+      "id": 21,
+      "name": "Tamilnadu",
+      "category": "States",
+      "active": 1
+    },
+    {
+      "id": 16,
+      "name": "Gujarat",
+      "category": "States",
+      "active": 1
+    },
+    {
+      "id": 48,
+      "name": "Aurangabad",
+      "category": "Top Metropolitan Cities",
+      "active": 1
+    },
+    {
+      "id": 49,
+      "name": "Rajkot",
+      "category": "Top Metropolitan Cities",
+      "active": 1
+    },
+    {
+      "id": 50,
+      "name": "Shimla",
+      "category": "Top Metropolitan Cities",
+      "active": 1
+    },
+    {
+      "id": 51,
+      "name": "Chandigarh",
+      "category": "Top Metropolitan Cities",
+      "active": 1
+    },
+    {
+      "id": 7,
+      "name": "Kolkata",
+      "category": "Top Metropolitan Cities",
+      "active": 1
+    },
+    {
+      "id": 6,
+      "name": "Pune",
+      "category": "Top Metropolitan Cities",
+      "active": 1
+    },
+    {
+      "id": 5,
+      "name": "Chennai",
+      "category": "Top Metropolitan Cities",
+      "active": 1
+    },
+    {
+      "id": 4,
+      "name": "Bangalore / Bengaluru",
+      "category": "Top Metropolitan Cities",
+      "active": 1
+    },
+    {
+      "id": 3,
+      "name": "Delhi / NCR",
+      "category": "Top Metropolitan Cities",
+      "active": 1
+    },
+    {
+      "id": 2,
+      "name": "Ahmedabad",
+      "category": "Top Metropolitan Cities",
+      "active": 1
+    },
+    {
+      "id": 47,
+      "name": "Patna",
+      "category": "Top Metropolitan Cities",
+      "active": 1
+    },
+    {
+      "id": 46,
+      "name": "Bhopal",
+      "category": "Top Metropolitan Cities",
+      "active": 1
+    },
+    {
+      "id": 45,
+      "name": "Indore",
+      "category": "Top Metropolitan Cities",
+      "active": 1
+    },
+    {
+      "id": 44,
+      "name": "Nagpur",
+      "category": "Top Metropolitan Cities",
+      "active": 1
+    },
+    {
+      "id": 43,
+      "name": "Kanpur",
+      "category": "Top Metropolitan Cities",
+      "active": 1
+    },
+    {
+      "id": 42,
+      "name": "Lucknow",
+      "category": "Top Metropolitan Cities",
+      "active": 1
+    },
+    {
+      "id": 41,
+      "name": "Madgaon",
+      "category": "Top Metropolitan Cities",
+      "active": 1
+    },
+    {
+      "id": 40,
+      "name": "Ponda",
+      "category": "Top Metropolitan Cities",
+      "active": 1
+    },
+    {
+      "id": 8,
+      "name": "Hyderabad / Secunderabad",
+      "category": "Top Metropolitan Cities",
+      "active": 1
+    },
+    {
+      "id": 1,
+      "name": "Mumbai",
+      "category": "Top Metropolitan Cities",
+      "active": 1
+    },
+    {
+      "id": 56,
+      "name": "Middle East",
+      "category": "Other",
+      "active": 1
+    },
+    {
+      "id": 55,
+      "name": "Dubai",
+      "category": "Other",
+      "active": 1
+    },
+    {
+      "id": 54,
+      "name": "UAE",
+      "category": "Other",
+      "active": 1
+    },
+    {
+      "id": 53,
+      "name": "US",
+      "category": "Other",
+      "active": 1
+    },
+    {
+      "id": 52,
+      "name": "kenya",
+      "category": "Other",
+      "active": 1
+    },
+    {
+      "id": 39,
+      "name": "Other",
+      "category": "Other",
+      "active": 1
+    },
+    {
+      "id": 38,
+      "name": "International Location / Overseas",
+      "category": "Other",
+      "active": 1
+    }
+  ],
+  "functional_area_records": [
+    {
+      "functional_area": "Accounting/Tax/Company Secretary/Audit",
+      "sub_functional_area": "Accounts",
+      "role": "Cost Accountant",
+      "role_id": 2
+    },
+    {
+      "functional_area": "Accounting/Tax/Company Secretary/Audit",
+      "sub_functional_area": "Accounts",
+      "role": "Taxation (Direct/ Indirect) Manager",
+      "role_id": 3
+    },
+    {
+      "functional_area": "Accounting/Tax/Company Secretary/Audit",
+      "sub_functional_area": "Accounts",
+      "role": "Accounts Manager",
+      "role_id": 4
+    },
+    {
+      "functional_area": "Accounting/Tax/Company Secretary/Audit",
+      "sub_functional_area": "Accounts",
+      "role": "Financial Accountant",
+      "role_id": 5
+    },
+    {
+      "functional_area": "Accounting/Tax/Company Secretary/Audit",
+      "sub_functional_area": "Accounts",
+      "role": "ICWA",
+      "role_id": 6
+    },
+    {
+      "functional_area": "Accounting/Tax/Company Secretary/Audit",
+      "sub_functional_area": "Accounts",
+      "role": "Chartered Accountant",
+      "role_id": 7
+    },
+    {
+      "functional_area": "Accounting/Tax/Company Secretary/Audit",
+      "sub_functional_area": "Accounts",
+      "role": "Accounts Executive/ Accountant",
+      "role_id": 1
+    },
+    {
+      "functional_area": "Graphic/ Web Designer",
+      "sub_functional_area": "General",
+      "role": "UI/UX Developer",
+      "role_id": 8
+    },
+    {
+      "functional_area": "Graphic/ Web Designer",
+      "sub_functional_area": "General",
+      "role": "Web Designer",
+      "role_id": 9
+    },
+    {
+      "functional_area": "Graphic/ Web Designer",
+      "sub_functional_area": "General",
+      "role": "Graphic Designer",
+      "role_id": 10
+    },
+    {
+      "functional_area": "Graphic/ Web Designer",
+      "sub_functional_area": "General",
+      "role": "Design Developer",
+      "role_id": 11
+    },
+    {
+      "functional_area": "HR/ Admin/PM/IR",
+      "sub_functional_area": "Administration/ Facility Management",
+      "role": "Manager/ Sr. Manager - Facility Management",
+      "role_id": 19
+    },
+    {
+      "functional_area": "HR/ Admin/PM/IR",
+      "sub_functional_area": "Administration/ Facility Management",
+      "role": "Executive/Sr. Executive- Facility Management",
+      "role_id": 18
+    },
+    {
+      "functional_area": "HR/ Admin/PM/IR",
+      "sub_functional_area": "Administration/ Facility Management",
+      "role": "Manager/ Sr. Manager - Administration",
+      "role_id": 17
+    },
+    {
+      "functional_area": "HR/ Admin/PM/IR",
+      "sub_functional_area": "Administration/ Facility Management",
+      "role": "Executive/Sr. Executive- Administration",
+      "role_id": 16
+    },
+    {
+      "functional_area": "HR/ Admin/PM/IR",
+      "sub_functional_area": "HR/Recruitment/IR",
+      "role": "HR Executive/ Manager",
+      "role_id": 12
+    },
+    {
+      "functional_area": "HR/ Admin/PM/IR",
+      "sub_functional_area": "HR/Recruitment/IR",
+      "role": "Employee Relations Executive/ Manager",
+      "role_id": 15
+    },
+    {
+      "functional_area": "HR/ Admin/PM/IR",
+      "sub_functional_area": "HR/Recruitment/IR",
+      "role": "Payroll Executive",
+      "role_id": 14
+    },
+    {
+      "functional_area": "HR/ Admin/PM/IR",
+      "sub_functional_area": "HR/Recruitment/IR",
+      "role": "Recruitment Executive/ Manager",
+      "role_id": 13
+    },
+    {
+      "functional_area": "HR/ Admin/PM/IR",
+      "sub_functional_area": "Senior Management",
+      "role": "Head/ VP/GM- Admin & Facilities",
+      "role_id": 22
+    },
+    {
+      "functional_area": "HR/ Admin/PM/IR",
+      "sub_functional_area": "Senior Management",
+      "role": "Head/ VP/GM- Facility Management",
+      "role_id": 24
+    },
+    {
+      "functional_area": "HR/ Admin/PM/IR",
+      "sub_functional_area": "Senior Management",
+      "role": "Head/ VP/GM- Compensation & Benefits",
+      "role_id": 23
+    },
+    {
+      "functional_area": "HR/ Admin/PM/IR",
+      "sub_functional_area": "Senior Management",
+      "role": "Head/ VP/GM- Recruitment",
+      "role_id": 21
+    },
+    {
+      "functional_area": "HR/ Admin/PM/IR",
+      "sub_functional_area": "Senior Management",
+      "role": "Head/ VP/GM- HR",
+      "role_id": 20
+    },
+    {
+      "functional_area": "Mkg./Advg./ MR/ Media Planning/ PR/ Corp. Comm.",
+      "sub_functional_area": "General",
+      "role": "Marketing Executive/ Manager",
+      "role_id": 33
+    },
+    {
+      "functional_area": "Mkg./Advg./ MR/ Media Planning/ PR/ Corp. Comm.",
+      "sub_functional_area": "General",
+      "role": "Social Media Marketing Manager",
+      "role_id": 38
+    },
+    {
+      "functional_area": "Mkg./Advg./ MR/ Media Planning/ PR/ Corp. Comm.",
+      "sub_functional_area": "General",
+      "role": "SEO Specilist/ Analyst/ Lead",
+      "role_id": 37
+    },
+    {
+      "functional_area": "Mkg./Advg./ MR/ Media Planning/ PR/ Corp. Comm.",
+      "sub_functional_area": "General",
+      "role": "International Marketing Manager",
+      "role_id": 36
+    },
+    {
+      "functional_area": "Mkg./Advg./ MR/ Media Planning/ PR/ Corp. Comm.",
+      "sub_functional_area": "General",
+      "role": "Regional Marketing Manager",
+      "role_id": 35
+    },
+    {
+      "functional_area": "Mkg./Advg./ MR/ Media Planning/ PR/ Corp. Comm.",
+      "sub_functional_area": "General",
+      "role": "Branch Marketing Manager",
+      "role_id": 34
+    },
+    {
+      "functional_area": "Mkg./Advg./ MR/ Media Planning/ PR/ Corp. Comm.",
+      "sub_functional_area": "General",
+      "role": "Corporate/ Brand Executive/ Manager",
+      "role_id": 32
+    },
+    {
+      "functional_area": "Mkg./Advg./ MR/ Media Planning/ PR/ Corp. Comm.",
+      "sub_functional_area": "General",
+      "role": "Corp. Communication Executive/ Manager",
+      "role_id": 31
+    },
+    {
+      "functional_area": "Mkg./Advg./ MR/ Media Planning/ PR/ Corp. Comm.",
+      "sub_functional_area": "General",
+      "role": "Media Planning Executive/ Manager",
+      "role_id": 30
+    },
+    {
+      "functional_area": "Mkg./Advg./ MR/ Media Planning/ PR/ Corp. Comm.",
+      "sub_functional_area": "General",
+      "role": "Key Account Executive/ Manager",
+      "role_id": 29
+    },
+    {
+      "functional_area": "Mkg./Advg./ MR/ Media Planning/ PR/ Corp. Comm.",
+      "sub_functional_area": "General",
+      "role": "Client Serving Executive/ Manager",
+      "role_id": 28
+    },
+    {
+      "functional_area": "Packaging Development",
+      "sub_functional_area": "General",
+      "role": "Packaging Development Executive/ Manager",
+      "role_id": 39
+    },
+    {
+      "functional_area": "Packaging Development",
+      "sub_functional_area": "General",
+      "role": "Head/ VP/GM- Packaging Development",
+      "role_id": 40
+    },
+    {
+      "functional_area": "Production/ Service Engineering/ Manufacturing/ Maintenance",
+      "sub_functional_area": "Safety/ Health / Environment",
+      "role": "Safety Officer / Executive/ Manager",
+      "role_id": 49
+    },
+    {
+      "functional_area": "Production/ Service Engineering/ Manufacturing/ Maintenance",
+      "sub_functional_area": "Safety/ Health / Environment",
+      "role": "Health  Officer/ Executive/ Manager",
+      "role_id": 50
+    },
+    {
+      "functional_area": "Production/ Service Engineering/ Manufacturing/ Maintenance",
+      "sub_functional_area": "Safety/ Health / Environment",
+      "role": "Environment Officer/ Executive/ Manager",
+      "role_id": 51
+    },
+    {
+      "functional_area": "Production/ Service Engineering/ Manufacturing/ Maintenance",
+      "sub_functional_area": "Senior Management",
+      "role": "Head/VP/GM  Production/ Manufacturing / Maintenance",
+      "role_id": 52
+    },
+    {
+      "functional_area": "Production/ Service Engineering/ Manufacturing/ Maintenance",
+      "sub_functional_area": "Senior Management",
+      "role": "Head/VP/GM - Safety/ Health/ Environment",
+      "role_id": 54
+    },
+    {
+      "functional_area": "Production/ Service Engineering/ Manufacturing/ Maintenance",
+      "sub_functional_area": "Senior Management",
+      "role": "Head/VP/GM - QA QC",
+      "role_id": 53
+    },
+    {
+      "functional_area": "Production/ Service Engineering/ Manufacturing/ Maintenance",
+      "sub_functional_area": "Production/ Manufacturing/ Maintenance",
+      "role": "Factory Head",
+      "role_id": 42
+    },
+    {
+      "functional_area": "Production/ Service Engineering/ Manufacturing/ Maintenance",
+      "sub_functional_area": "Production/ Manufacturing/ Maintenance",
+      "role": "Product Development Executive/Manager",
+      "role_id": 46
+    },
+    {
+      "functional_area": "Production/ Service Engineering/ Manufacturing/ Maintenance",
+      "sub_functional_area": "Production/ Manufacturing/ Maintenance",
+      "role": "Service/ Maintenance- Executive/ Manager",
+      "role_id": 47
+    },
+    {
+      "functional_area": "Production/ Service Engineering/ Manufacturing/ Maintenance",
+      "sub_functional_area": "Production/ Manufacturing/ Maintenance",
+      "role": "QA-QC Executive/ Manager",
+      "role_id": 45
+    },
+    {
+      "functional_area": "Production/ Service Engineering/ Manufacturing/ Maintenance",
+      "sub_functional_area": "Production/ Manufacturing/ Maintenance",
+      "role": "Project Manager- Production/ Manufacturing / Maintenance",
+      "role_id": 48
+    },
+    {
+      "functional_area": "Production/ Service Engineering/ Manufacturing/ Maintenance",
+      "sub_functional_area": "Production/ Manufacturing/ Maintenance",
+      "role": "Production Executive/ Manager",
+      "role_id": 44
+    },
+    {
+      "functional_area": "Production/ Service Engineering/ Manufacturing/ Maintenance",
+      "sub_functional_area": "Production/ Manufacturing/ Maintenance",
+      "role": "Industrial Engineer",
+      "role_id": 41
+    },
+    {
+      "functional_area": "Production/ Service Engineering/ Manufacturing/ Maintenance",
+      "sub_functional_area": "Production/ Manufacturing/ Maintenance",
+      "role": "Design Engineer/ Manager",
+      "role_id": 43
+    },
+    {
+      "functional_area": "Project Management/ Site Engineers",
+      "sub_functional_area": "Project Management",
+      "role": "Project Manager - Telecom",
+      "role_id": 55
+    },
+    {
+      "functional_area": "Project Management/ Site Engineers",
+      "sub_functional_area": "Project Management",
+      "role": "Project Manager - IT/ Software",
+      "role_id": 56
+    },
+    {
+      "functional_area": "Project Management/ Site Engineers",
+      "sub_functional_area": "Project Management",
+      "role": "Project Manager- Production/ Manufacturing / Maintenance",
+      "role_id": 57
+    },
+    {
+      "functional_area": "Project Management/ Site Engineers",
+      "sub_functional_area": "Site Engineers",
+      "role": "Mechanical Engineer-others",
+      "role_id": 63
+    },
+    {
+      "functional_area": "Project Management/ Site Engineers",
+      "sub_functional_area": "Site Engineers",
+      "role": "Structrual Engineer- Building/ Bridge",
+      "role_id": 64
+    },
+    {
+      "functional_area": "Project Management/ Site Engineers",
+      "sub_functional_area": "Site Engineers",
+      "role": "Structrual Engineer- others",
+      "role_id": 65
+    },
+    {
+      "functional_area": "Project Management/ Site Engineers",
+      "sub_functional_area": "Site Engineers",
+      "role": "Construction- General Building/ Heavy/ Residential",
+      "role_id": 66
+    },
+    {
+      "functional_area": "Project Management/ Site Engineers",
+      "sub_functional_area": "Site Engineers",
+      "role": "Mechanical Engineer- Plumbing / Fire Protection/ HVAC",
+      "role_id": 62
+    },
+    {
+      "functional_area": "Project Management/ Site Engineers",
+      "sub_functional_area": "Site Engineers",
+      "role": "Mechanical Engineer- Telecom/ Industrial/ Commercial",
+      "role_id": 61
+    },
+    {
+      "functional_area": "Project Management/ Site Engineers",
+      "sub_functional_area": "Site Engineers",
+      "role": "Civil Engineer- others",
+      "role_id": 59
+    },
+    {
+      "functional_area": "Project Management/ Site Engineers",
+      "sub_functional_area": "Site Engineers",
+      "role": "Civil Engineer- Telecom/ Highway Roadway",
+      "role_id": 58
+    },
+    {
+      "functional_area": "Project Management/ Site Engineers",
+      "sub_functional_area": "Site Engineers",
+      "role": "Electrical Engineer- Telecom/ Industrial/ Commercial",
+      "role_id": 60
+    },
+    {
+      "functional_area": "Purchase/SCM",
+      "sub_functional_area": "General",
+      "role": "Purchase Executive/ Manager",
+      "role_id": 25
+    },
+    {
+      "functional_area": "Purchase/SCM",
+      "sub_functional_area": "General",
+      "role": "Material Management Executive/ Manager",
+      "role_id": 26
+    },
+    {
+      "functional_area": "Purchase/SCM",
+      "sub_functional_area": "General",
+      "role": "Logistics Executive/ Manager",
+      "role_id": 27
+    },
+    {
+      "functional_area": "R & D/ Engineering Design",
+      "sub_functional_area": "General",
+      "role": "R & D Executive/ Manager",
+      "role_id": 67
+    },
+    {
+      "functional_area": "R & D/ Engineering Design",
+      "sub_functional_area": "General",
+      "role": "Design/ Sr. Design Engineer",
+      "role_id": 68
+    },
+    {
+      "functional_area": "R & D/ Engineering Design",
+      "sub_functional_area": "General",
+      "role": "Project Lead",
+      "role_id": 69
+    },
+    {
+      "functional_area": "Sales/ Business Development/ Client Servicing",
+      "sub_functional_area": "Retail/ Corporate/ Institutional /Channel Sales",
+      "role": "Client Servicing / Key Account Manager",
+      "role_id": 72
+    },
+    {
+      "functional_area": "Sales/ Business Development/ Client Servicing",
+      "sub_functional_area": "Retail/ Corporate/ Institutional /Channel Sales",
+      "role": "Client Relationship Manager",
+      "role_id": 76
+    },
+    {
+      "functional_area": "Sales/ Business Development/ Client Servicing",
+      "sub_functional_area": "Retail/ Corporate/ Institutional /Channel Sales",
+      "role": "Territory Executive / Manager",
+      "role_id": 75
+    },
+    {
+      "functional_area": "Sales/ Business Development/ Client Servicing",
+      "sub_functional_area": "Retail/ Corporate/ Institutional /Channel Sales",
+      "role": "Regional Executive/ Manager",
+      "role_id": 74
+    },
+    {
+      "functional_area": "Sales/ Business Development/ Client Servicing",
+      "sub_functional_area": "Retail/ Corporate/ Institutional /Channel Sales",
+      "role": "Area Sales Executive/ Manager",
+      "role_id": 73
+    },
+    {
+      "functional_area": "Sales/ Business Development/ Client Servicing",
+      "sub_functional_area": "Retail/ Corporate/ Institutional /Channel Sales",
+      "role": "BD/ Branch / Regional Manager",
+      "role_id": 71
+    },
+    {
+      "functional_area": "Sales/ Business Development/ Client Servicing",
+      "sub_functional_area": "Retail/ Corporate/ Institutional /Channel Sales",
+      "role": "Sales Officer/ Executive/ Manager",
+      "role_id": 70
+    },
+    {
+      "functional_area": "Sales/ Business Development/ Client Servicing",
+      "sub_functional_area": "Senior Management",
+      "role": "Head/ VP/GM- Sales/ BD",
+      "role_id": 77
+    },
+    {
+      "functional_area": "Software Development- Application Programming",
+      "sub_functional_area": "General",
+      "role": "Software Development",
+      "role_id": 78
+    },
+    {
+      "functional_area": "Software Development- Application Programming",
+      "sub_functional_area": "General",
+      "role": "Team Lead /Tech Lead",
+      "role_id": 79
+    },
+    {
+      "functional_area": "Software Development- Application Programming",
+      "sub_functional_area": "General",
+      "role": "Project Lead",
+      "role_id": 80
+    },
+    {
+      "functional_area": "Software Development- Application Programming",
+      "sub_functional_area": "General",
+      "role": "Testing engineer",
+      "role_id": 81
+    },
+    {
+      "functional_area": "Software Development- Application Programming",
+      "sub_functional_area": "General",
+      "role": "Product Manager",
+      "role_id": 82
+    }
+  ],
+  "education_records": [
+    {
+      "qualification": "Diploma",
+      "course": "Electrical",
+      "specialization": "Electrical",
+      "education_id": 119,
+      "active": 1
+    },
+    {
+      "qualification": "Diploma",
+      "course": "Fire & Safety",
+      "specialization": "Fire & Safety",
+      "education_id": 121,
+      "active": 1
+    },
+    {
+      "qualification": "Diploma",
+      "course": "Mechanical",
+      "specialization": "Mechanical",
+      "education_id": 120,
+      "active": 1
+    },
+    {
+      "qualification": "Diploma",
+      "course": "Civil",
+      "specialization": "Civil",
+      "education_id": 116,
+      "active": 1
+    },
+    {
+      "qualification": "Graduation Qualification",
+      "course": "Bachor of Arcitect (B. Arch.)",
+      "specialization": "Architect",
+      "education_id": 25,
+      "active": 1
+    },
+    {
+      "qualification": "Graduation Qualification",
+      "course": "Bachor of Arcitect (B. Arch.)",
+      "specialization": "Others",
+      "education_id": 26,
+      "active": 1
+    },
+    {
+      "qualification": "Graduation Qualification",
+      "course": "Diploma",
+      "specialization": "Computers",
+      "education_id": 54,
+      "active": 1
+    },
+    {
+      "qualification": "Graduation Qualification",
+      "course": "Diploma",
+      "specialization": "Insurance",
+      "education_id": 60,
+      "active": 1
+    },
+    {
+      "qualification": "Graduation Qualification",
+      "course": "Diploma",
+      "specialization": "Tourism",
+      "education_id": 59,
+      "active": 1
+    },
+    {
+      "qualification": "Graduation Qualification",
+      "course": "Diploma",
+      "specialization": "Import/ Export",
+      "education_id": 58,
+      "active": 1
+    },
+    {
+      "qualification": "Graduation Qualification",
+      "course": "Diploma",
+      "specialization": "Management",
+      "education_id": 57,
+      "active": 1
+    },
+    {
+      "qualification": "Graduation Qualification",
+      "course": "Diploma",
+      "specialization": "Architect",
+      "education_id": 56,
+      "active": 1
+    },
+    {
+      "qualification": "Graduation Qualification",
+      "course": "Diploma",
+      "specialization": "Graphic / Web Designing",
+      "education_id": 55,
+      "active": 1
+    },
+    {
+      "qualification": "Graduation Qualification",
+      "course": "Diploma",
+      "specialization": "Chemical",
+      "education_id": 53,
+      "active": 1
+    },
+    {
+      "qualification": "Graduation Qualification",
+      "course": "Diploma",
+      "specialization": "Engineering",
+      "education_id": 52,
+      "active": 1
+    },
+    {
+      "qualification": "Graduation Qualification",
+      "course": "Diploma",
+      "specialization": "Mechanical",
+      "education_id": 51,
+      "active": 1
+    },
+    {
+      "qualification": "Graduation Qualification",
+      "course": "Diploma",
+      "specialization": "Electrical",
+      "education_id": 50,
+      "active": 1
+    },
+    {
+      "qualification": "Graduation Qualification",
+      "course": "Diploma",
+      "specialization": "Civil",
+      "education_id": 49,
+      "active": 1
+    },
+    {
+      "qualification": "Graduation Qualification",
+      "course": "BE / B.Tech (From Top Ranked Colleges)",
+      "specialization": "Energy",
+      "education_id": 47,
+      "active": 1
+    },
+    {
+      "qualification": "Graduation Qualification",
+      "course": "BE / B.Tech (From Top Ranked Colleges)",
+      "specialization": "Others",
+      "education_id": 48,
+      "active": 1
+    },
+    {
+      "qualification": "Graduation Qualification",
+      "course": "BE / B.Tech (From Top Ranked Colleges)",
+      "specialization": "Agriculture",
+      "education_id": 46,
+      "active": 1
+    },
+    {
+      "qualification": "Graduation Qualification",
+      "course": "BE / B.Tech (From Top Ranked Colleges)",
+      "specialization": "Production/ Industrial",
+      "education_id": 45,
+      "active": 1
+    },
+    {
+      "qualification": "Graduation Qualification",
+      "course": "BE / B.Tech (From Top Ranked Colleges)",
+      "specialization": "Telecom",
+      "education_id": 44,
+      "active": 1
+    },
+    {
+      "qualification": "Graduation Qualification",
+      "course": "BE / B.Tech (From Top Ranked Colleges)",
+      "specialization": "Computers",
+      "education_id": 43,
+      "active": 1
+    },
+    {
+      "qualification": "Graduation Qualification",
+      "course": "BE / B.Tech (From Top Ranked Colleges)",
+      "specialization": "Mechanical",
+      "education_id": 42,
+      "active": 1
+    },
+    {
+      "qualification": "Graduation Qualification",
+      "course": "BE / B.Tech (From Top Ranked Colleges)",
+      "specialization": "Electrical",
+      "education_id": 41,
+      "active": 1
+    },
+    {
+      "qualification": "Graduation Qualification",
+      "course": "BE / B.Tech (From Top Ranked Colleges)",
+      "specialization": "Civil",
+      "education_id": 40,
+      "active": 1
+    },
+    {
+      "qualification": "Graduation Qualification",
+      "course": "BE / B.Tech",
+      "specialization": "Production/ Industrial",
+      "education_id": 36,
+      "active": 1
+    },
+    {
+      "qualification": "Graduation Qualification",
+      "course": "BE / B.Tech",
+      "specialization": "Others",
+      "education_id": 39,
+      "active": 1
+    },
+    {
+      "qualification": "Graduation Qualification",
+      "course": "BE / B.Tech",
+      "specialization": "Energy",
+      "education_id": 38,
+      "active": 1
+    },
+    {
+      "qualification": "Graduation Qualification",
+      "course": "BE / B.Tech",
+      "specialization": "Agriculture",
+      "education_id": 37,
+      "active": 1
+    },
+    {
+      "qualification": "Graduation Qualification",
+      "course": "BE / B.Tech",
+      "specialization": "Telecom",
+      "education_id": 35,
+      "active": 1
+    },
+    {
+      "qualification": "Graduation Qualification",
+      "course": "BE / B.Tech",
+      "specialization": "Computers",
+      "education_id": 34,
+      "active": 1
+    },
+    {
+      "qualification": "Graduation Qualification",
+      "course": "BE / B.Tech",
+      "specialization": "Mechanical",
+      "education_id": 33,
+      "active": 1
+    },
+    {
+      "qualification": "Graduation Qualification",
+      "course": "BE / B.Tech",
+      "specialization": "Electrical",
+      "education_id": 32,
+      "active": 1
+    },
+    {
+      "qualification": "Graduation Qualification",
+      "course": "BE / B.Tech",
+      "specialization": "Civil",
+      "education_id": 31,
+      "active": 1
+    },
+    {
+      "qualification": "Graduation Qualification",
+      "course": "Bachelor of Science (B.Sc)",
+      "specialization": "Chemistry",
+      "education_id": 9,
+      "active": 1
+    },
+    {
+      "qualification": "Graduation Qualification",
+      "course": "Bachelor of Science (B.Sc)",
+      "specialization": "Physics",
+      "education_id": 10,
+      "active": 1
+    },
+    {
+      "qualification": "Graduation Qualification",
+      "course": "Bachelor of Science (B.Sc)",
+      "specialization": "Biology",
+      "education_id": 11,
+      "active": 1
+    },
+    {
+      "qualification": "Graduation Qualification",
+      "course": "Bachelor of Science (B.Sc)",
+      "specialization": "Environmental Science",
+      "education_id": 13,
+      "active": 1
+    },
+    {
+      "qualification": "Graduation Qualification",
+      "course": "Bachelor of Science (B.Sc)",
+      "specialization": "Maths",
+      "education_id": 12,
+      "active": 1
+    },
+    {
+      "qualification": "Graduation Qualification",
+      "course": "Bachelor of Science (B.Sc)",
+      "specialization": "Food Technology",
+      "education_id": 18,
+      "active": 1
+    },
+    {
+      "qualification": "Graduation Qualification",
+      "course": "Bachelor of Science (B.Sc)",
+      "specialization": "Dairy Technology",
+      "education_id": 17,
+      "active": 1
+    },
+    {
+      "qualification": "Graduation Qualification",
+      "course": "Bachelor of Science (B.Sc)",
+      "specialization": "Agriculture",
+      "education_id": 16,
+      "active": 1
+    },
+    {
+      "qualification": "Graduation Qualification",
+      "course": "Bachelor of Science (B.Sc)",
+      "specialization": "Computers ",
+      "education_id": 15,
+      "active": 1
+    },
+    {
+      "qualification": "Graduation Qualification",
+      "course": "Bachelor of Science (B.Sc)",
+      "specialization": "Electronics",
+      "education_id": 14,
+      "active": 1
+    },
+    {
+      "qualification": "Graduation Qualification",
+      "course": "Bachelor of Pharmacy (B. Pharma)",
+      "specialization": "Pharmacy",
+      "education_id": 23,
+      "active": 1
+    },
+    {
+      "qualification": "Graduation Qualification",
+      "course": "Bachelor of Pharmacy (B. Pharma)",
+      "specialization": "Others",
+      "education_id": 24,
+      "active": 1
+    },
+    {
+      "qualification": "Graduation Qualification",
+      "course": "Bachelor of Education (B. Ed.)",
+      "specialization": "Others",
+      "education_id": 28,
+      "active": 1
+    },
+    {
+      "qualification": "Graduation Qualification",
+      "course": "Bachelor of Education (B. Ed.)",
+      "specialization": "Education",
+      "education_id": 27,
+      "active": 1
+    },
+    {
+      "qualification": "Graduation Qualification",
+      "course": "Bachelor of Computer Application (BCA)",
+      "specialization": "Others",
+      "education_id": 30,
+      "active": 1
+    },
+    {
+      "qualification": "Graduation Qualification",
+      "course": "Bachelor of Computer Application (BCA)",
+      "specialization": "Computers",
+      "education_id": 29,
+      "active": 1
+    },
+    {
+      "qualification": "Graduation Qualification",
+      "course": "Bachelor of Commerce (B.Com)",
+      "specialization": "Commerce",
+      "education_id": 7,
+      "active": 1
+    },
+    {
+      "qualification": "Graduation Qualification",
+      "course": "Bachelor of Commerce (B.Com)",
+      "specialization": "Others",
+      "education_id": 8,
+      "active": 1
+    },
+    {
+      "qualification": "Graduation Qualification",
+      "course": "Bachelor of Business Management (BMS)",
+      "specialization": "Management",
+      "education_id": 21,
+      "active": 1
+    },
+    {
+      "qualification": "Graduation Qualification",
+      "course": "Bachelor of Business Management (BMS)",
+      "specialization": "Others",
+      "education_id": 22,
+      "active": 1
+    },
+    {
+      "qualification": "Graduation Qualification",
+      "course": "Bachelor of Business Administration (BBA)",
+      "specialization": "Management",
+      "education_id": 19,
+      "active": 1
+    },
+    {
+      "qualification": "Graduation Qualification",
+      "course": "Bachelor of Business Administration (BBA)",
+      "specialization": "Others",
+      "education_id": 20,
+      "active": 1
+    },
+    {
+      "qualification": "Graduation Qualification",
+      "course": "Bachelor of Arts (BA)",
+      "specialization": "Communication",
+      "education_id": 2,
+      "active": 1
+    },
+    {
+      "qualification": "Graduation Qualification",
+      "course": "Bachelor of Arts (BA)",
+      "specialization": "English",
+      "education_id": 3,
+      "active": 1
+    },
+    {
+      "qualification": "Graduation Qualification",
+      "course": "Bachelor of Arts (BA)",
+      "specialization": "Economics",
+      "education_id": 4,
+      "active": 1
+    },
+    {
+      "qualification": "Graduation Qualification",
+      "course": "Bachelor of Arts (BA)",
+      "specialization": "Maths",
+      "education_id": 5,
+      "active": 1
+    },
+    {
+      "qualification": "Graduation Qualification",
+      "course": "Bachelor of Arts (BA)",
+      "specialization": "PR/ Advertising",
+      "education_id": 6,
+      "active": 1
+    },
+    {
+      "qualification": "Graduation Qualification",
+      "course": "Bachelor of Arts (BA)",
+      "specialization": "Art & Humanities",
+      "education_id": 1,
+      "active": 1
+    },
+    {
+      "qualification": "Post Graduation Qualification",
+      "course": "Company Secretary (CS)",
+      "specialization": "Company Secretary (CS)",
+      "education_id": 112,
+      "active": 1
+    },
+    {
+      "qualification": "Post Graduation Qualification",
+      "course": "NICMAR",
+      "specialization": "Prroject Management",
+      "education_id": 117,
+      "active": 1
+    },
+    {
+      "qualification": "Post Graduation Qualification",
+      "course": "Masters of Technology (M. Tech)",
+      "specialization": "Telecom",
+      "education_id": 98,
+      "active": 1
+    },
+    {
+      "qualification": "Post Graduation Qualification",
+      "course": "Masters of Technology (M. Tech)",
+      "specialization": "Others",
+      "education_id": 101,
+      "active": 1
+    },
+    {
+      "qualification": "Post Graduation Qualification",
+      "course": "Masters of Technology (M. Tech)",
+      "specialization": "Agriculture",
+      "education_id": 100,
+      "active": 1
+    },
+    {
+      "qualification": "Post Graduation Qualification",
+      "course": "Masters of Technology (M. Tech)",
+      "specialization": "Energy",
+      "education_id": 99,
+      "active": 1
+    },
+    {
+      "qualification": "Post Graduation Qualification",
+      "course": "Masters of Technology (M. Tech)",
+      "specialization": "Production/ Industrial",
+      "education_id": 97,
+      "active": 1
+    },
+    {
+      "qualification": "Post Graduation Qualification",
+      "course": "Masters of Technology (M. Tech)",
+      "specialization": "Computers",
+      "education_id": 96,
+      "active": 1
+    },
+    {
+      "qualification": "Post Graduation Qualification",
+      "course": "Masters of Technology (M. Tech)",
+      "specialization": "Electrical",
+      "education_id": 95,
+      "active": 1
+    },
+    {
+      "qualification": "Post Graduation Qualification",
+      "course": "Masters of Technology (M. Tech)",
+      "specialization": "Civil",
+      "education_id": 94,
+      "active": 1
+    },
+    {
+      "qualification": "Post Graduation Qualification",
+      "course": "Masters of Technology (M. Tech)",
+      "specialization": "Mechanical",
+      "education_id": 93,
+      "active": 1
+    },
+    {
+      "qualification": "Post Graduation Qualification",
+      "course": "Masters of Science (M.Sc)",
+      "specialization": "Dairy Technology",
+      "education_id": 77,
+      "active": 1
+    },
+    {
+      "qualification": "Post Graduation Qualification",
+      "course": "Masters of Science (M.Sc)",
+      "specialization": "Environmental Science",
+      "education_id": 73,
+      "active": 1
+    },
+    {
+      "qualification": "Post Graduation Qualification",
+      "course": "Masters of Science (M.Sc)",
+      "specialization": "Chemistry",
+      "education_id": 69,
+      "active": 1
+    },
+    {
+      "qualification": "Post Graduation Qualification",
+      "course": "Masters of Science (M.Sc)",
+      "specialization": "Physics",
+      "education_id": 70,
+      "active": 1
+    },
+    {
+      "qualification": "Post Graduation Qualification",
+      "course": "Masters of Science (M.Sc)",
+      "specialization": "Biology",
+      "education_id": 71,
+      "active": 1
+    },
+    {
+      "qualification": "Post Graduation Qualification",
+      "course": "Masters of Science (M.Sc)",
+      "specialization": "Electronics",
+      "education_id": 74,
+      "active": 1
+    },
+    {
+      "qualification": "Post Graduation Qualification",
+      "course": "Masters of Science (M.Sc)",
+      "specialization": "Maths",
+      "education_id": 72,
+      "active": 1
+    },
+    {
+      "qualification": "Post Graduation Qualification",
+      "course": "Masters of Science (M.Sc)",
+      "specialization": "Computers",
+      "education_id": 75,
+      "active": 1
+    },
+    {
+      "qualification": "Post Graduation Qualification",
+      "course": "Masters of Science (M.Sc)",
+      "specialization": "Agriculture",
+      "education_id": 76,
+      "active": 1
+    },
+    {
+      "qualification": "Post Graduation Qualification",
+      "course": "Masters of Science (M.Sc)",
+      "specialization": "Food Technology",
+      "education_id": 78,
+      "active": 1
+    },
+    {
+      "qualification": "Post Graduation Qualification",
+      "course": "Masters of Pharmacy (M. Pharma)",
+      "specialization": "Pharmacy",
+      "education_id": 102,
+      "active": 1
+    },
+    {
+      "qualification": "Post Graduation Qualification",
+      "course": "Masters of Pharmacy (M. Pharma)",
+      "specialization": "Others",
+      "education_id": 103,
+      "active": 1
+    },
+    {
+      "qualification": "Post Graduation Qualification",
+      "course": "Masters of Law (M M L)",
+      "specialization": "Others",
+      "education_id": 115,
+      "active": 1
+    },
+    {
+      "qualification": "Post Graduation Qualification",
+      "course": "Masters of Law (M M L)",
+      "specialization": "Law",
+      "education_id": 114,
+      "active": 1
+    },
+    {
+      "qualification": "Post Graduation Qualification",
+      "course": "Masters of Education (M. Ed.)",
+      "specialization": "Others",
+      "education_id": 107,
+      "active": 1
+    },
+    {
+      "qualification": "Post Graduation Qualification",
+      "course": "Masters of Education (M. Ed.)",
+      "specialization": "Education",
+      "education_id": 106,
+      "active": 1
+    },
+    {
+      "qualification": "Post Graduation Qualification",
+      "course": "Masters of Computer Application (MCA)",
+      "specialization": "Others",
+      "education_id": 109,
+      "active": 1
+    },
+    {
+      "qualification": "Post Graduation Qualification",
+      "course": "Masters of Computer Application (MCA)",
+      "specialization": "Computers",
+      "education_id": 108,
+      "active": 1
+    },
+    {
+      "qualification": "Post Graduation Qualification",
+      "course": "Masters of Commerce (M.Com)",
+      "specialization": "Commerce",
+      "education_id": 67,
+      "active": 1
+    },
+    {
+      "qualification": "Post Graduation Qualification",
+      "course": "Masters of Commerce (M.Com)",
+      "specialization": "Others",
+      "education_id": 68,
+      "active": 1
+    },
+    {
+      "qualification": "Post Graduation Qualification",
+      "course": "Masters of Business Management (MMS / PGDM)",
+      "specialization": "Advertising/ Mass Communication",
+      "education_id": 86,
+      "active": 1
+    },
+    {
+      "qualification": "Post Graduation Qualification",
+      "course": "Masters of Business Management (MMS / PGDM)",
+      "specialization": "Finance",
+      "education_id": 87,
+      "active": 1
+    },
+    {
+      "qualification": "Post Graduation Qualification",
+      "course": "Masters of Business Management (MMS / PGDM)",
+      "specialization": "Operations",
+      "education_id": 88,
+      "active": 1
+    },
+    {
+      "qualification": "Post Graduation Qualification",
+      "course": "Masters of Business Management (MMS / PGDM)",
+      "specialization": "Marketing",
+      "education_id": 89,
+      "active": 1
+    },
+    {
+      "qualification": "Post Graduation Qualification",
+      "course": "Masters of Business Management (MMS / PGDM)",
+      "specialization": "Information Technology",
+      "education_id": 90,
+      "active": 1
+    },
+    {
+      "qualification": "Post Graduation Qualification",
+      "course": "Masters of Business Management (MMS / PGDM)",
+      "specialization": "HR/ Industrial Relation",
+      "education_id": 91,
+      "active": 1
+    },
+    {
+      "qualification": "Post Graduation Qualification",
+      "course": "Masters of Business Management (MMS / PGDM)",
+      "specialization": "International Business",
+      "education_id": 92,
+      "active": 1
+    },
+    {
+      "qualification": "Post Graduation Qualification",
+      "course": "Masters of Business Administration (MBA / PGDM)",
+      "specialization": "Information Technology",
+      "education_id": 83,
+      "active": 1
+    },
+    {
+      "qualification": "Post Graduation Qualification",
+      "course": "Masters of Business Administration (MBA / PGDM)",
+      "specialization": "International Business",
+      "education_id": 85,
+      "active": 1
+    },
+    {
+      "qualification": "Post Graduation Qualification",
+      "course": "Masters of Business Administration (MBA / PGDM)",
+      "specialization": "HR/ Industrial Relation",
+      "education_id": 84,
+      "active": 1
+    },
+    {
+      "qualification": "Post Graduation Qualification",
+      "course": "Masters of Business Administration (MBA / PGDM)",
+      "specialization": "Marketing",
+      "education_id": 82,
+      "active": 1
+    },
+    {
+      "qualification": "Post Graduation Qualification",
+      "course": "Masters of Business Administration (MBA / PGDM)",
+      "specialization": "Operations",
+      "education_id": 81,
+      "active": 1
+    },
+    {
+      "qualification": "Post Graduation Qualification",
+      "course": "Masters of Business Administration (MBA / PGDM)",
+      "specialization": "Finance",
+      "education_id": 80,
+      "active": 1
+    },
+    {
+      "qualification": "Post Graduation Qualification",
+      "course": "Masters of Business Administration (MBA / PGDM)",
+      "specialization": "Advertising/ Mass Communication",
+      "education_id": 79,
+      "active": 1
+    },
+    {
+      "qualification": "Post Graduation Qualification",
+      "course": "Masters of Business Administration (MBA / PGDM)",
+      "specialization": "Construction Management",
+      "education_id": 118,
+      "active": 1
+    },
+    {
+      "qualification": "Post Graduation Qualification",
+      "course": "Masters of Arts (MA)",
+      "specialization": "English",
+      "education_id": 63,
+      "active": 1
+    },
+    {
+      "qualification": "Post Graduation Qualification",
+      "course": "Masters of Arts (MA)",
+      "specialization": "Art & Humanities",
+      "education_id": 61,
+      "active": 1
+    },
+    {
+      "qualification": "Post Graduation Qualification",
+      "course": "Masters of Arts (MA)",
+      "specialization": "PR/ Advertising",
+      "education_id": 66,
+      "active": 1
+    },
+    {
+      "qualification": "Post Graduation Qualification",
+      "course": "Masters of Arts (MA)",
+      "specialization": "Maths",
+      "education_id": 65,
+      "active": 1
+    },
+    {
+      "qualification": "Post Graduation Qualification",
+      "course": "Masters of Arts (MA)",
+      "specialization": "Economics",
+      "education_id": 64,
+      "active": 1
+    },
+    {
+      "qualification": "Post Graduation Qualification",
+      "course": "Masters of Arts (MA)",
+      "specialization": "Communication",
+      "education_id": 62,
+      "active": 1
+    },
+    {
+      "qualification": "Post Graduation Qualification",
+      "course": "Masters  of Arcitect (M. Arch.)",
+      "specialization": "Architect",
+      "education_id": 104,
+      "active": 1
+    },
+    {
+      "qualification": "Post Graduation Qualification",
+      "course": "Masters  of Arcitect (M. Arch.)",
+      "specialization": "Others",
+      "education_id": 105,
+      "active": 1
+    },
+    {
+      "qualification": "Post Graduation Qualification",
+      "course": "Journalism/ Mass Communication",
+      "specialization": "Journalism/ Mass Communication",
+      "education_id": 111,
+      "active": 1
+    },
+    {
+      "qualification": "Post Graduation Qualification",
+      "course": "ICWA",
+      "specialization": "ICWA",
+      "education_id": 113,
+      "active": 1
+    },
+    {
+      "qualification": "Post Graduation Qualification",
+      "course": "Chartered Accountant (CA)",
+      "specialization": "Chartered Accountant (CA)",
+      "education_id": 110,
+      "active": 1
+    },
+    {
+      "qualification": "Under Graduate",
+      "course": "HSC",
+      "specialization": "HSC",
+      "education_id": 123,
+      "active": 1
+    },
+    {
+      "qualification": "Under Graduate",
+      "course": "ITI",
+      "specialization": "ITI",
+      "education_id": 124,
+      "active": 1
+    },
+    {
+      "qualification": "Under Graduate",
+      "course": "SSC",
+      "specialization": "SSC",
+      "education_id": 122,
+      "active": 1
+    }
+  ]
+}
