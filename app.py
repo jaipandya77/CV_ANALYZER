@@ -2,6 +2,7 @@ import io
 import json
 import re
 import os
+import time
 import base64
 import urllib.parse
 from difflib import SequenceMatcher
@@ -10,11 +11,273 @@ import streamlit as st
 import PyPDF2
 import openpyxl
 from google import genai
-from google.genai import types
+from google.genai import types, errors
 
-# Setup the Gemini API client using secure streamlit secrets
-# Never hard-code API keys in source code.
-# Put GEMINI_API_KEY in .streamlit/secrets.toml or in an environment variable.
+# Page configuration must be the first Streamlit command
+st.set_page_config(page_title="CV Analyzer", page_icon="📄", layout="wide")
+
+# ------------------------------------------------------------
+# EXECUTIVE MIDNIGHT THEME (OPTIMIZED FOR 60 FPS SCROLLING)
+# ------------------------------------------------------------
+st.markdown("""<style>
+:root {
+    --bg-canvas: #0b0f19;
+    --bg-card: #151c2c;
+    --border-subtle: #243048;
+    --border-accent: rgba(99, 102, 241, 0.35);
+    --text-main: #f8fafc;
+    --text-muted: #94a3b8;
+    --brand-primary: #6366f1;
+}
+
+/* 1. Hardware-accelerated fixed canvas (zero repaint on scroll) */
+.stApp {
+    background-color: #0b0f19 !important;
+    background-image: radial-gradient(circle at 15% 0%, rgba(99,102,241,.12), transparent 360px),
+                      radial-gradient(circle at 85% 15%, rgba(139,92,246,.08), transparent 320px) !important;
+    background-attachment: fixed !important;
+    color: var(--text-main) !important;
+}
+
+[data-testid="stAppViewContainer"], [data-testid="stMainBlockContainer"] {
+    background: transparent !important;
+}
+
+.block-container {
+    max-width: 1240px;
+    padding-top: 1.6rem;
+    padding-bottom: 3.5rem;
+}
+
+h1, h2, h3, h4, h5, p, span, label {
+    color: var(--text-main) !important;
+    letter-spacing: -0.02em;
+}
+
+/* 2. Hero Banner */
+.app-hero {
+    position: relative;
+    border: 1px solid var(--border-accent);
+    border-radius: 20px;
+    padding: 28px 32px;
+    margin-bottom: 18px;
+    background: linear-gradient(135deg, #172033 0%, #0f172a 100%);
+    box-shadow: 0 4px 16px rgba(0, 0, 0, 0.25);
+}
+.app-hero .eyebrow {
+    display: inline-flex;
+    align-items: center;
+    padding: 5px 12px;
+    border-radius: 999px;
+    background: rgba(99, 102, 241, 0.18);
+    border: 1px solid rgba(99, 102, 241, 0.3);
+    font-size: .74rem;
+    text-transform: uppercase;
+    letter-spacing: .12em;
+    font-weight: 800;
+    color: #a5b4fc !important;
+    margin-bottom: 10px;
+}
+.app-hero h1 {
+    margin: 0;
+    font-size: 2.35rem;
+    font-weight: 800;
+    color: #ffffff !important;
+}
+.app-hero p {
+    margin: 8px 0 0;
+    color: #94a3b8 !important;
+    font-size: 0.98rem;
+    line-height: 1.6;
+    max-width: 820px;
+}
+
+/* 3. Workflow Stepper */
+.workflow {
+    display: grid;
+    grid-template-columns: repeat(5, 1fr);
+    gap: 12px;
+    margin: 14px 0 24px;
+}
+.workflow-step {
+    position: relative;
+    border: 1px solid var(--border-subtle);
+    border-radius: 13px;
+    padding: 13px 15px;
+    background: var(--bg-card);
+    box-shadow: 0 2px 8px rgba(0, 0, 0, 0.18);
+    font-size: .88rem;
+    font-weight: 700;
+    color: #e2e8f0 !important;
+}
+.workflow-step span {
+    display: block;
+    color: #818cf8 !important;
+    font-size: .68rem;
+    text-transform: uppercase;
+    letter-spacing: .1em;
+    margin-bottom: 2px;
+}
+.workflow-step:not(:last-child):after {
+    content: "›";
+    position: absolute;
+    right: -9px;
+    top: 50%;
+    transform: translateY(-50%);
+    color: #4f46e5;
+    font-size: 1.35rem;
+    z-index: 2;
+}
+
+/* 4. Dropzone */
+[data-testid="stFileUploader"] section {
+    background: var(--bg-card) !important;
+    border: 1.5px dashed #4338ca !important;
+    border-radius: 16px !important;
+    padding: 24px !important;
+}
+[data-testid="stFileUploader"] section:hover {
+    border-color: #6366f1 !important;
+    background: #182236 !important;
+}
+[data-testid="stFileUploaderDropzoneInstructions"] * {
+    color: #cbd5e1 !important;
+}
+[data-testid="stFileUploader"] section button {
+    background: linear-gradient(135deg, #4f46e5, #6366f1) !important;
+    border: none !important;
+    border-radius: 10px !important;
+    padding: 6px 16px !important;
+    box-shadow: 0 2px 8px rgba(79, 70, 229, 0.25);
+}
+[data-testid="stFileUploader"] section button * {
+    color: #ffffff !important;
+    font-weight: 750 !important;
+}
+[data-testid="stFileUploaderFile"] {
+    background: #1e293b !important;
+    border: 1px solid #334155 !important;
+    border-radius: 10px !important;
+}
+[data-testid="stFileUploaderFile"] * {
+    color: #f8fafc !important;
+}
+
+/* 5. Buttons */
+button[kind="primary"], 
+.stButton > button[kind="primary"], 
+div.stButton > button:first-child,
+.stDownloadButton > button {
+    background: linear-gradient(135deg, #4f46e5 0%, #7c3aed 100%) !important;
+    border: none !important;
+    border-radius: 12px !important;
+    min-height: 2.9rem !important;
+    box-shadow: 0 4px 14px rgba(79, 70, 229, 0.25) !important;
+    transition: transform .12s ease !important;
+}
+button[kind="primary"]:hover, 
+.stButton > button[kind="primary"]:hover,
+.stDownloadButton > button:hover {
+    transform: translateY(-1px) !important;
+}
+button[kind="primary"] *, 
+.stButton > button[kind="primary"] *, 
+div.stButton > button:first-child *,
+.stDownloadButton > button * {
+    color: #ffffff !important;
+    font-weight: 750 !important;
+    font-size: 1rem !important;
+}
+
+/* 6. Form Controls */
+[data-testid="stWidgetLabel"] label,
+[data-testid="stWidgetLabel"] p {
+    color: #e2e8f0 !important;
+    font-weight: 700 !important;
+    font-size: 0.92rem !important;
+}
+div[data-baseweb="select"] > div {
+    background: var(--bg-card) !important;
+    border: 1px solid var(--border-subtle) !important;
+    border-radius: 11px !important;
+    color: #f8fafc !important;
+}
+div[data-baseweb="select"] > div:focus-within {
+    border-color: #6366f1 !important;
+}
+div[data-baseweb="select"] * {
+    color: #f8fafc !important;
+}
+div[data-baseweb="popover"] ul,
+div[data-baseweb="menu"] {
+    background: #111827 !important;
+    border: 1px solid #374151 !important;
+}
+div[data-baseweb="menu"] li {
+    background: #111827 !important;
+    color: #f8fafc !important;
+}
+div[data-baseweb="menu"] li:hover {
+    background: #1f2937 !important;
+    color: #818cf8 !important;
+}
+
+/* 7. Tags & Expanders */
+[data-baseweb="tag"] {
+    background: #1e293b !important;
+    border: 1px solid #334155 !important;
+    border-radius: 8px !important;
+}
+[data-baseweb="tag"] span, [data-baseweb="tag"] svg {
+    color: #e2e8f0 !important;
+}
+[data-testid="stExpander"] {
+    background: var(--bg-card) !important;
+    border: 1px solid var(--border-subtle) !important;
+    border-radius: 14px !important;
+    margin-top: .4rem !important;
+    margin-bottom: .8rem !important;
+}
+[data-testid="stExpander"] summary, [data-testid="stExpander"] summary * {
+    color: #f8fafc !important;
+    font-weight: 750 !important;
+}
+
+.candidate-chip {
+    display: inline-flex;
+    align-items: center;
+    padding: 5px 12px;
+    border-radius: 999px;
+    background: rgba(99, 102, 241, 0.18);
+    border: 1px solid rgba(99, 102, 241, 0.32);
+    color: #a5b4fc !important;
+    font-size: .72rem;
+    font-weight: 800;
+    letter-spacing: .08em;
+    margin-bottom: 8px;
+}
+
+.app-footer {
+    text-align: center;
+    color: #64748b !important;
+    font-size: .84rem;
+    padding: 2.8rem 0 .5rem;
+}
+.app-footer strong {
+    color: #94a3b8 !important;
+}
+hr {
+    border-color: #1e293b !important;
+}
+@media (max-width: 800px) {
+    .workflow { grid-template-columns: 1fr; }
+    .workflow-step:not(:last-child):after { display: none; }
+}
+</style>""", unsafe_allow_html=True)
+
+# ------------------------------------------------------------
+# CREDENTIALS & DIRECTORY RESOLUTION
+# ------------------------------------------------------------
 try:
     GEMINI_API_KEY = st.secrets["GEMINI_API_KEY"]
 except Exception:
@@ -25,13 +288,18 @@ if not GEMINI_API_KEY:
     st.stop()
 
 client = genai.Client(api_key=GEMINI_API_KEY)
-MODEL = "gemini-3.5-flash-lite"
+MODEL = os.getenv("GEMINI_MODEL", "gemini-3.5-flash-lite")
 
-# Helper to read raw text content out of uploaded candidate PDF documents page-by-page.
-# This text is useful for deterministic keyword/location rules, but some CVs
-# contain dates/employer lines that are visually rendered yet missing from
-# ordinary PDF text extraction. Gemini therefore also receives the original
-# PDF bytes directly for factual extraction (see extract_resume_data).
+BASE_DIR = os.path.dirname(os.path.abspath(__file__))
+V7_PATH = os.path.join(BASE_DIR, "skillgroomers_master_data_v7.json")
+V6_PATH = os.path.join(BASE_DIR, "skillgroomers_master_data_v6.json")
+MASTER_DATA_FILE = V7_PATH if os.path.exists(V7_PATH) else V6_PATH
+
+
+class GeminiTemporaryUnavailable(Exception):
+    pass
+
+
 def extract_text_from_pdf(file):
     pdf_bytes = file.getvalue() if hasattr(file, "getvalue") else file.read()
     reader = PyPDF2.PdfReader(io.BytesIO(pdf_bytes))
@@ -42,8 +310,7 @@ def extract_text_from_pdf(file):
             text.append(extracted)
     return "\n".join(text)
 
-# Extended schema containing factual CV information needed
-# for both the Excel report and future Skill Groomers integration.
+
 resume_schema = {
     "type": "object",
     "properties": {
@@ -59,22 +326,20 @@ resume_schema = {
         "native_state": {"type": "string"},
         "core_role": {"type": "string"},
         "functional_area": {"type": "string"},
-        "key_skills": {
-            "type": "array",
-            "items": {"type": "string"}
-        },
+        "key_skills": {"type": "array", "items": {"type": "string"}},
         "role": {"type": "string"},
         "industry": {"type": "string"},
         "highest_qualification": {
             "type": "object",
             "properties": {
+                "qualification_text": {"type": "string"},
                 "degree": {"type": "string"},
                 "course": {"type": "string"},
                 "specialization": {"type": "string"},
                 "institute": {"type": "string"},
                 "year": {"type": "string"}
             },
-            "required": ["degree", "course", "specialization", "institute", "year"]
+            "required": ["qualification_text", "degree", "course", "specialization", "institute", "year"]
         },
         "work_experience": {
             "type": "array",
@@ -103,599 +368,282 @@ resume_schema = {
 
 
 def extract_resume_data(raw_text, pdf_bytes=None):
-    prompt = f"""
+    prompt = """
 Extract structured HR information from the resume below.
-
 The resume is the ONLY source of factual candidate information.
-Return only information supported by the resume.
-Never invent personal information, employers, dates, education, salary, skills, or other candidate facts.
-Accuracy is more important than completeness.
-If factual information is missing or uncertain, return an empty string "" for that field.
+Never invent personal information, employers, dates, education, salary, skills, or other facts.
+Accuracy is more important than completeness. If missing, return empty string "".
+Do not calculate total experience or tenure; Python calculates them.
 
-Do not calculate total experience, average tenure, number of employers, job changes, or employment gaps.
-Python will perform those calculations.
+LOCATION:
+- current_city/state: Only from explicit residential/current location or candidate header.
+- native_city/state: Only from explicit permanent address/native place.
+- District is not state.
 
-============================================================
-PERSONAL DETAILS
-============================================================
-Extract candidate_name, email, phone, alternate_phone, date_of_birth, and gender.
-- date_of_birth: only if explicitly stated; prefer YYYY-MM-DD.
-- gender: only if explicitly stated or unambiguous.
-- If unavailable, return "".
+PROFILE:
+- core_role: Broad primary career role (Safety, Planning, Civil Engineer, QA/QC, Billing, etc.).
+- functional_area: Functional department (Project Management, Safety / Health / Environment, etc.).
+- key_skills: Meaningful technical skills array.
+- role: Current or latest designation.
+- industry: Construction, Real Estate, IT, Oil and Gas, etc.
 
-============================================================
-LOCATION
-============================================================
-Extract current_city, current_state, native_city, and native_state.
-Do not treat current location as native location automatically.
-Do not treat a job location as residential location automatically.
-If uncertain, return "".
+HIGHEST QUALIFICATION:
+- highest COMPLETED academic qualification only.
+Hierarchy: Doctorate > Masters > Bachelors > Diploma > HSC > SSC.
+- qualification_text: preserve the wording written in the CV.
+- specialization: branch/stream only (e.g., Civil Engineering, Mechanical, Computers). If no branch is mentioned (e.g. just Polytechnic or Diploma), return "".
 
-============================================================
-PROFESSIONAL PROFILE
-============================================================
-core_role:
-- Return a concise main professional/core role supported by the candidate's overall career history.
-- Do NOT leave this blank when the resume contains enough professional experience to identify a main role.
-- Prefer a broad, useful role rather than copying an unusually specific designation.
-- Examples: Safety, Quantity Estimator, Planning Engineer, Civil Engineer, Project Manager, QA/QC, Recruitment, HR, MEP Engineer.
-- If the resume genuinely provides no reliable professional-role evidence, return "".
-
-functional_area:
-- Return a concise human-readable functional area supported by the candidate's work history, responsibilities, role, and skills.
-- Do NOT leave this blank when the resume provides enough professional evidence to determine a functional area.
-- This is for the Excel report; it does NOT need to exactly match the Skill Groomers website hierarchy yet.
-- Examples: Safety / Health / Environment, Project Management, Quantity Surveying / Estimation, Quality Assurance / Quality Control, Human Resources, Recruitment, MEP Engineering.
-- Do not invent an unrelated area. If there is genuinely insufficient evidence, return "".
-
-key_skills:
-- Return the genuine important technical/professional skills supported by the resume.
-- This factual list is for the Excel/report and is NOT limited to Skill Groomers' 4-keyword limit.
-- Prioritize meaningful technical/professional skills and avoid weak duplicates.
-- Do not invent skills.
-- Do not include certifications, company names, job titles by themselves, hobbies, or generic personality traits.
-- Skill Groomers will separately select a maximum of 4 supported master keywords.
-
-role:
-- Extract the candidate's current or most recent professional role/designation.
-- Prefer wording supported by the resume.
-- Keep this as the candidate's factual current/most recent designation.
-- Do not replace it with the functional_area value.
-- Exact Skill Groomers website classification will be mapped separately from master data.
-- Do not exaggerate seniority.
-
-industry:
-- Primary industry based on recent/relevant employment history.
-- Examples: Construction, Real Estate, IT, Recruitment, Oil and Gas, Manufacturing, Infrastructure.
-
-============================================================
-HIGHEST QUALIFICATION
-============================================================
-Return the highest COMPLETED qualification only.
-Do not treat ongoing/pursuing education as completed.
-
-Use these field meanings exactly:
-- degree: FULL qualification name, e.g. "Bachelor of Engineering", "Bachelor of Science", "Master of Business Administration", "Diploma".
-- course: qualification abbreviation/short course name, e.g. "B.E.", "B.Tech", "B.Sc", "MBA", "Diploma".
-- specialization: field/branch only, e.g. "Civil Engineering", "Mechanical Engineering", "Physics", "Human Resources".
-- institute: institution/university name.
-- year: passing/completion year as YYYY.
-
-Example: "B.E. Civil Engineering, 2018" should become:
-degree = "Bachelor of Engineering"
-course = "B.E."
-specialization = "Civil Engineering"
-year = "2018"
-
-Do not put the specialization into the course field when the qualification abbreviation is available.
-Do not duplicate the same specialization into both course and specialization.
-Do not associate a nearby year or specialization with the wrong qualification.
-If unavailable, return "".
-
-============================================================
-WORK EXPERIENCE
-============================================================
-Extract EVERY professional employment position in the resume.
-Do not stop after recent jobs.
-Include legitimate employment such as Graduate Engineer Trainee, Junior Engineer, Site Engineer, Engineer, Planning Engineer, Manager.
-Do not include internships, academic/college projects, workshops, training programs, or volunteer work unless clearly represented as actual professional employment.
-Return jobs in chronological order, OLDEST FIRST.
-For every job extract company, designation, start_date, end_date, and country.
-- start_date/end_date: YYYY-MM when month available; YYYY if only year available.
-- Current employment end_date: "Present".
-- country: actual country name only if supported; otherwise "".
-Never deliberately reverse start and end dates.
-
-============================================================
-SALARY
-============================================================
-annual_salary:
-- Extract current annual salary/CTC only if explicitly stated.
-- Preserve useful salary information such as "₹8.5 LPA" or "850000".
-- Do not estimate salary.
-- If unavailable, return "".
-
-============================================================
-CERTIFICATIONS
-============================================================
-Return professional certifications as individual strings.
-Do not count ordinary training, seminars, workshops, or memberships unless clearly presented as certifications.
-If none are present, return [].
-
-============================================================
-FINAL ACCURACY RULES
-============================================================
-Never invent candidate personal details, employers, dates, designations, countries, qualifications, salary, certifications, or skills.
-core_role, functional_area, and industry may summarize strongly supported professional history, but must not introduce experience the candidate does not have.
-Do not leave core_role or functional_area blank merely because the exact wording is absent: infer a concise professional category when the resume's employment history, responsibilities, and skills clearly support it.
-Exact Skill Groomers website Functional Area/Sub Functional Area/Role IDs will still be mapped separately from master data.
-
-RESUME SOURCE:
-Use the attached PDF as the primary source when one is provided.
-The fallback extracted text is included only when no PDF bytes are available.
+WORK EXPERIENCE:
+Extract every professional position in chronological order, OLDEST FIRST.
+- start_date/end_date: YYYY-MM or YYYY. Ongoing: "Present".
 """
 
-    # Passing the actual PDF to Gemini preserves visually rendered dates,
-    # employer names and multi-column layout that text extractors can omit.
-    # If PDF input is unavailable, keep the previous text-only path.
     if pdf_bytes:
-        contents = [
-            types.Part.from_bytes(data=pdf_bytes, mime_type="application/pdf"),
-            prompt,
-        ]
+        contents = [types.Part.from_bytes(data=pdf_bytes, mime_type="application/pdf"), prompt]
     else:
         contents = prompt + "\n\nRESUME TEXT:\n" + (raw_text or "")
 
-    response = client.models.generate_content(
-        model=MODEL,
-        contents=contents,
-        config={
-            "response_mime_type": "application/json",
-            "response_schema": resume_schema,
-            "temperature": 0
-        }
-    )
+    max_attempts = 3
+    for attempt in range(max_attempts):
+        try:
+            response = client.models.generate_content(
+                model=MODEL,
+                contents=contents,
+                config={
+                    "response_mime_type": "application/json",
+                    "response_schema": resume_schema,
+                    "temperature": 0
+                }
+            )
+            return json.loads(response.text)
+        except errors.ServerError as error:
+            status_code = getattr(error, "code", None) or getattr(error, "status_code", None)
+            if status_code != 503 and "503" not in str(error).upper():
+                raise
+            if attempt == max_attempts - 1:
+                raise GeminiTemporaryUnavailable("Gemini is temporarily busy. Please try again.") from error
+            time.sleep(2 ** (attempt + 1))
 
-    return json.loads(response.text)
 
-
-# ---------- Helper functions for date parsing and experience calculations ----------
+# ---------- Deterministic Math & Parsing Helpers ----------
 
 def parse_start_date(value):
-    """Parse YYYY-MM or YYYY. Unknown dates sort to the beginning."""
     if not value or not isinstance(value, str):
         return datetime(1900, 1, 1)
-
     val = value.strip()
-
-    for fmt in ("%Y-%m-%d", "%Y-%m"):
+    for fmt in ("%Y-%m-%d", "%Y-%m", "%d-%m-%Y", "%d/%m/%Y", "%m/%Y", "%b %Y", "%B %Y"):
         try:
             return datetime.strptime(val, fmt)
         except ValueError:
             pass
-
-    match = re.fullmatch(r"(\d{4})", val)
-    if match:
-        return datetime(int(match.group(1)), 1, 1)
-
-    return datetime(1900, 1, 1)
+    match = re.search(r"\b(19\d{2}|20\d{2})\b", val)
+    return datetime(int(match.group(1)), 1, 1) if match else datetime(1900, 1, 1)
 
 
 def parse_end_date(value):
-    """Parse an employment end date. Present/current resolves to today."""
     if not value or not isinstance(value, str):
         return datetime.today()
-
     val = value.strip()
-    lowered = val.lower()
-
-    if lowered in ["present", "current", "ongoing", "till date", "now"]:
+    if val.lower() in ["present", "current", "ongoing", "till date", "now"]:
         return datetime.today()
-
-    for fmt in ("%Y-%m-%d", "%Y-%m"):
+    for fmt in ("%Y-%m-%d", "%Y-%m", "%d-%m-%Y", "%d/%m/%Y", "%m/%Y", "%b %Y", "%B %Y"):
         try:
             return datetime.strptime(val, fmt)
         except ValueError:
             pass
-
-    match = re.fullmatch(r"(\d{4})", val)
-    if match:
-        return datetime(int(match.group(1)), 12, 31)
-
-    return datetime.today()
-
-
-def get_job_months(job):
-    """
-    Calculate a job duration directly in whole months.
-
-    This avoids converting years -> decimals -> months. For current jobs,
-    the current partial month is counted once it has begun.
-    """
-    try:
-        start = parse_start_date(job.get("start_date", ""))
-        end_value = job.get("end_date", "")
-        end = parse_end_date(end_value)
-
-        if start.year == 1900 or end < start:
-            return 0
-
-        months = (end.year - start.year) * 12 + (end.month - start.month)
-
-        # If exact day information is available, count the additional month
-        # only after reaching the start day. For YYYY-MM input both dates use
-        # day 1, so the completed month difference remains deterministic.
-        if re.fullmatch(r"\d{4}-\d{2}-\d{2}", str(job.get("start_date", "")).strip()) and \
-           re.fullmatch(r"\d{4}-\d{2}-\d{2}", str(end_value).strip()):
-            if end.day >= start.day:
-                months += 1
-
-        # For an ongoing job, include the current partial month.
-        if isinstance(end_value, str) and end_value.strip().lower() in [
-            "present", "current", "ongoing", "till date", "now"
-        ]:
-            months += 1
-
-        return max(0, months)
-    except Exception:
-        return 0
+    match = re.search(r"\b(19\d{2}|20\d{2})\b", val)
+    return datetime(int(match.group(1)), 12, 31) if match else datetime.today()
 
 
 def sort_jobs(jobs):
-    return sorted(jobs, key=lambda j: parse_start_date(j.get("start_date", "")))
+    return sorted(jobs or [], key=lambda j: parse_start_date(j.get("start_date", "")))
 
 
 def _month_index(year, month):
-    """Convert a calendar year/month into a sortable integer index."""
     return (year * 12) + (month - 1)
 
 
 def _is_year_only_date(value):
-    """Return True only when the CV supplied a bare four-digit year."""
     return bool(re.fullmatch(r"\d{4}", str(value or "").strip()))
 
 
 def has_year_only_employment_dates(jobs):
-    """Whether any employment period lacks month precision in the CV."""
-    return any(
-        _is_year_only_date(job.get("start_date", ""))
-        or _is_year_only_date(job.get("end_date", ""))
-        for job in (jobs or [])
-    )
+    return any(_is_year_only_date(j.get("start_date")) or _is_year_only_date(j.get("end_date")) for j in (jobs or []))
 
 
 def _job_month_range(job, as_of=None):
-    """
-    Return the inclusive calendar-month range covered by one job.
-
-    Month-precise dates keep the existing inclusive calendar-month rule.
-    For a CV that gives only years (for example 2017-2020), do NOT silently
-    expand that to Jan 2017-Dec 2020 (48 months). The CV only supports an
-    elapsed-year duration of 3 years, so the calculation uses Jan 2017-Dec
-    2019 (36 months). This avoids adding an unsupported extra year while
-    preserving a deterministic integer-month value for HR calculations.
-
-    The UI separately warns HR whenever year-only dates are present because
-    an exact month-level total cannot be known from that CV.
-    """
     as_of = as_of or datetime.today()
-    start_value = str(job.get("start_date", "") or "").strip()
-    raw_end_value = str(job.get("end_date", "") or "").strip()
-
-    start = parse_start_date(start_value)
+    s_val = str(job.get("start_date", "") or "").strip()
+    e_val = str(job.get("end_date", "") or "").strip()
+    start = parse_start_date(s_val)
     if start.year == 1900:
         return None
-
-    end_lower = raw_end_value.lower()
-    if end_lower in ["present", "current", "ongoing", "till date", "now"]:
+    if e_val.lower() in ["present", "current", "ongoing", "till date", "now"]:
         end = as_of
-    elif _is_year_only_date(raw_end_value):
-        end_year = int(raw_end_value)
-        if _is_year_only_date(start_value) and end_year > start.year:
-            # '2017-2020' supports 3 elapsed years, not four full calendar years.
-            end = datetime(end_year - 1, 12, 1)
-        else:
-            # Same-year/partially precise ranges remain explicitly approximate.
-            end = datetime(end_year, 12, 1)
+    elif _is_year_only_date(e_val):
+        ey = int(e_val)
+        end = datetime(ey - 1, 12, 1) if (_is_year_only_date(s_val) and ey > start.year) else datetime(ey, 12, 1)
     else:
-        end = parse_end_date(raw_end_value)
-
-    if end < start:
-        return None
-
-    return _month_index(start.year, start.month), _month_index(end.year, end.month)
+        end = parse_end_date(e_val)
+    return None if end < start else (_month_index(start.year, start.month), _month_index(end.year, end.month))
 
 
 def total_experience_months(jobs, as_of=None):
-    """
-    Calculate total professional experience as the UNION of calendar months.
-
-    This deliberately avoids summing each job independently, because concurrent
-    roles would otherwise double-count the same month. Gaps are naturally
-    excluded. Each covered calendar month is counted once.
-    """
-    covered_months = set()
-    for job in jobs:
-        month_range = _job_month_range(job, as_of=as_of)
-        if not month_range:
-            continue
-        start_idx, end_idx = month_range
-        covered_months.update(range(start_idx, end_idx + 1))
-    return len(covered_months)
-
-
-def _job_month_range_full_year_assumption(job, as_of=None):
-    """Upper estimate for year-only dates using Jan-Dec calendar coverage."""
-    as_of = as_of or datetime.today()
-    start = parse_start_date(job.get("start_date", ""))
-    if start.year == 1900:
-        return None
-
-    end_value = str(job.get("end_date", "") or "").strip().lower()
-    if end_value in ["present", "current", "ongoing", "till date", "now"]:
-        end = as_of
-    else:
-        end = parse_end_date(job.get("end_date", ""))
-
-    if end < start:
-        return None
-    return _month_index(start.year, start.month), _month_index(end.year, end.month)
+    covered = set()
+    for job in jobs or []:
+        r = _job_month_range(job, as_of=as_of)
+        if r:
+            covered.update(range(r[0], r[1] + 1))
+    return len(covered)
 
 
 def total_experience_months_upper_estimate(jobs, as_of=None):
-    """
-    Upper estimate used only when a CV contains bare year-only employment dates.
-    Month-precise CVs are unaffected. Overlapping months are still counted once.
-    """
-    covered_months = set()
+    covered = set()
+    as_of = as_of or datetime.today()
     for job in jobs or []:
-        month_range = _job_month_range_full_year_assumption(job, as_of=as_of)
-        if not month_range:
+        start = parse_start_date(job.get("start_date", ""))
+        if start.year == 1900:
             continue
-        start_idx, end_idx = month_range
-        covered_months.update(range(start_idx, end_idx + 1))
-    return len(covered_months)
+        e_val = str(job.get("end_date", "") or "").strip().lower()
+        end = as_of if e_val in ["present", "current", "ongoing", "till date", "now"] else parse_end_date(job.get("end_date", ""))
+        if end >= start:
+            covered.update(range(_month_index(start.year, start.month), _month_index(end.year, end.month) + 1))
+    return len(covered)
+
+
+def split_months(total_months):
+    m = max(0, int(round(total_months)))
+    return m // 12, m % 12
+
+
+def format_months(total_months):
+    y, m = split_months(total_months)
+    parts = []
+    if y: parts.append(f"{y} year{'s' if y != 1 else ''}")
+    if m: parts.append(f"{m} month{'s' if m != 1 else ''}")
+    return " ".join(parts) if parts else "0 years"
 
 
 def experience_display(jobs, as_of=None):
-    """Return exact experience or an approximate lower-to-upper range."""
     lower = total_experience_months(jobs, as_of=as_of)
     if not has_year_only_employment_dates(jobs):
         return format_months(lower)
     upper = max(lower, total_experience_months_upper_estimate(jobs, as_of=as_of))
-    if upper == lower:
-        return f"Approx. {format_months(lower)}"
-    return f"Approx. {format_months(lower)} – {format_months(upper)}"
+    return f"Approx. {format_months(lower)}" if upper == lower else f"Approx. {format_months(lower)} – {format_months(upper)}"
 
-
-def split_months(total_months):
-    total_months = max(0, int(round(total_months)))
-    return total_months // 12, total_months % 12
-
-
-def format_months(total_months):
-    years, months = split_months(total_months)
-    parts = []
-    if years:
-        parts.append(f"{years} year{'s' if years != 1 else ''}")
-    if months:
-        parts.append(f"{months} month{'s' if months != 1 else ''}")
-    return " ".join(parts) if parts else "0 years"
 
 def number_of_employers(jobs):
-    companies = set()
-    for job in jobs:
-        company = job.get("company", "").strip()
-        if company:
-            companies.add(company.lower())
-    return len(companies)
+    return len({(j.get("company") or "").strip().lower() for j in (jobs or []) if (j.get("company") or "").strip()})
+
 
 def compute_job_changes(jobs):
-    """Count number of job changes (consecutive distinct employers)."""
-    if len(jobs) < 2:
+    sorted_j = sort_jobs(jobs or [])
+    if len(sorted_j) < 2:
         return 0
-    changes = 0
-    prev_company = None
-    for job in jobs:
-        curr = job.get("company", "").strip().lower()
-        if not curr:
-            continue
-        if prev_company is not None and curr != prev_company:
+    changes, prev = 0, None
+    for j in sorted_j:
+        curr = (j.get("company") or "").strip().lower()
+        if curr and prev and curr != prev:
             changes += 1
-        prev_company = curr
+        if curr:
+            prev = curr
     return changes
 
-def average_tenure_months(total_months, job_changes):
-    """Average tenure = total experience / job changes, kept in months."""
-    if job_changes <= 0:
-        return total_months
-    return int(round(total_months / job_changes))
 
+def average_tenure_months(total_months, job_changes):
+    return total_months if job_changes <= 0 else int(round(total_months / job_changes))
 
 
 def get_current_and_previous_jobs(jobs):
-    """Return the current/latest job and the previous DISTINCT employer."""
-    sorted_jobs = sort_jobs(jobs)
+    sorted_jobs = sort_jobs(jobs or [])
     if not sorted_jobs:
         return None, None
-
-    present_terms = {"present", "current", "ongoing", "till date", "now"}
-    current = None
-    for job in reversed(sorted_jobs):
-        if str(job.get("end_date", "") or "").strip().lower() in present_terms:
-            current = job
-            break
-    if current is None:
-        current = sorted_jobs[-1]
-
-    current_company = normalize_master_text(current.get("company", ""))
-    previous = None
-    for job in reversed(sorted_jobs):
-        if job is current:
-            continue
-        company = normalize_master_text(job.get("company", ""))
-        if company and company != current_company:
-            previous = job
-            break
-
+    current = next((j for j in reversed(sorted_jobs) if str(j.get("end_date", "")).strip().lower() in {"present", "current", "ongoing", "till date", "now"}), sorted_jobs[-1])
+    cur_comp = normalize_master_text(current.get("company", ""))
+    previous = next((j for j in reversed(sorted_jobs) if j is not current and normalize_master_text(j.get("company", "")) and normalize_master_text(j.get("company", "")) != cur_comp), None)
     return current, previous
 
-# Optional: post-process key_skills to remove known certification keywords
+
 def clean_key_skills(skills):
     if not skills:
         return []
-
-    cert_keywords = ["pmp", "six sigma", "leed ap", "prince2", "scrum", "itil", "ccna", "ccnp", "aws", "azure", "gcp"]
-    cleaned = []
-
-    seen = set()
-
-    for skill in skills:
-        if not isinstance(skill, str):
-            continue
-
-        skill = skill.strip()
-        if not skill:
-            continue
-
-        if any(cert in skill.lower() for cert in cert_keywords):
-            continue
-
-        normalized = skill.lower()
-        if normalized in seen:
-            continue
-
-        seen.add(normalized)
-        cleaned.append(skill)
-
-    # Keep all genuine factual skills for Excel. Skill Groomers mapping
-    # separately selects a maximum of 4 supported master keywords.
-    return cleaned
+    certs = ["pmp", "six sigma", "leed ap", "prince2", "scrum", "itil", "ccna", "ccnp", "aws", "azure", "gcp"]
+    res, seen = [], set()
+    for s in skills:
+        if isinstance(s, str):
+            c = s.strip().strip("'\"").strip()
+            if c and c.lower() not in seen and not any(cert in c.lower() for cert in certs):
+                seen.add(c.lower())
+                res.append(c)
+    return res
 
 
-def normalize_factual_education(data):
-    """
-    Normalize ONLY the presentation/semantics of the highest completed
-    qualification. This does not use Skill Groomers categories and does not
-    invent a new qualification.
+def parse_salary_lakhs(salary_str):
+    if not salary_str:
+        return None
+    s = str(salary_str).strip()
+    m_lakh = re.search(r"(\d+(?:\.\d+)?)\s*(?:lpa|lac|lacs|lakh|lakhs)", s, re.I)
+    if m_lakh:
+        return float(m_lakh.group(1))
+    m_num = re.search(r"(\d+(?:\.\d+)?)", s.replace(",", "").strip())
+    if m_num:
+        num = float(m_num.group(1))
+        return round(num / 100000.0, 2) if num >= 10000 else num if num < 100 else None
+    return None
 
-    Example supported by CV extraction:
-      degree="B.E.", course="Civil Engineering", specialization="Civil Engineering"
-    becomes:
-      degree="Bachelor of Engineering", course="B.E.",
-      specialization="Civil Engineering".
-    """
+
+def reconcile_qualification_text(data):
     result = dict(data)
     qual = dict(result.get("highest_qualification", {}) or {})
-
-    degree_raw = str(qual.get("degree", "") or "").strip()
-    course_raw = str(qual.get("course", "") or "").strip()
-    spec_raw = str(qual.get("specialization", "") or "").strip()
-    combined = normalize_master_text(f"{degree_raw} {course_raw}")
-
-    def contains_any(*terms):
-        return any(term in combined for term in terms)
-
-    # Degree/course normalization is only performed when the extracted text
-    # itself contains evidence for that qualification family.
-    degree_full = degree_raw
-    course_short = course_raw
-
-    if contains_any("bachelor of engineering", "bachelor engineering", "b e", "be civil", "be mechanical", "be electrical"):
-        degree_full, course_short = "Bachelor of Engineering", "B.E."
-    elif contains_any("bachelor of technology", "bachelor technology", "b tech", "btech"):
-        degree_full, course_short = "Bachelor of Technology", "B.Tech"
-    elif contains_any("master of engineering", "master engineering", "m e"):
-        degree_full, course_short = "Master of Engineering", "M.E."
-    elif contains_any("master of technology", "master technology", "m tech", "mtech"):
-        degree_full, course_short = "Master of Technology", "M.Tech"
-    elif contains_any("bachelor of science", "bachelor science", "b sc", "bsc"):
-        degree_full, course_short = "Bachelor of Science", "B.Sc"
-    elif contains_any("master of science", "master science", "m sc", "msc"):
-        degree_full, course_short = "Master of Science", "M.Sc"
-    elif contains_any("master of business administration", "mba"):
-        degree_full, course_short = "Master of Business Administration", "MBA"
-    elif contains_any("bachelor of commerce", "b com", "bcom"):
-        degree_full, course_short = "Bachelor of Commerce", "B.Com"
-    elif contains_any("master of commerce", "m com", "mcom"):
-        degree_full, course_short = "Master of Commerce", "M.Com"
-    elif contains_any("bachelor of business administration", "bba"):
-        degree_full, course_short = "Bachelor of Business Administration", "BBA"
-    elif contains_any("bachelor of computer applications", "bca"):
-        degree_full, course_short = "Bachelor of Computer Applications", "BCA"
-    elif contains_any("master of computer applications", "mca"):
-        degree_full, course_short = "Master of Computer Applications", "MCA"
-    elif "diploma" in combined:
-        degree_full, course_short = "Diploma", "Diploma"
-
-    # If Gemini placed a clear branch/field in course while a qualification
-    # family is known, preserve that field as specialization instead.
-    course_n = normalize_master_text(course_raw)
-    spec_n = normalize_master_text(spec_raw)
-    field_terms = [
-        "civil", "mechanical", "electrical", "electronics", "computer",
-        "information technology", "telecom", "production", "physics",
-        "chemistry", "biology", "mathematics", "commerce", "finance",
-        "human resources", "marketing", "architecture", "agriculture",
-    ]
-    if course_short != course_raw and not spec_raw and any(term in course_n for term in field_terms):
-        spec_raw = course_raw
-        spec_n = course_n
-
-    # If course and specialization contain the same field, keep it only as
-    # specialization once a true qualification short name is known.
-    if course_short != course_raw and spec_raw and course_n == spec_n:
-        pass  # course_short already holds the qualification abbreviation.
-
-    qual["degree"] = degree_full
-    qual["course"] = course_short
-    qual["specialization"] = spec_raw
+    qn = normalize_master_text(str(qual.get("qualification_text", "") or ""))
+    if qn:
+        if qn.startswith("degree in ") and not any(t in qn for t in ["b e", "bachelor of engineering", "b tech", "btech"]):
+            qual["degree"] = qual.get("qualification_text")
+            qual["course"] = ""
+            branch = re.sub(r"^degree\s+in\s+", "", qual["degree"], flags=re.I).strip()
+            if branch:
+                qual["specialization"] = branch
+        elif "diploma" in qn:
+            qual["degree"] = "Diploma"
+            qual["course"] = "Diploma"
     result["highest_qualification"] = qual
     return result
 
 
-# ============================================================
-# SKILL GROOMERS MASTER-DATA MAPPER — V6
-# ============================================================
-# The website master values below are loaded from the complete snapshots
-# collected from:
-#   /corerole
-#   /keywords
-#   /functionalArea
-#   /industry
-#   /education
-#   /location
-#
-# Gemini extracts factual / human-readable CV information.
-# Python then maps that evidence to exact Skill Groomers values and IDs.
-# The original website spelling is preserved in all returned mappings.
+def normalize_factual_education(data):
+    result = dict(data)
+    qual = dict(result.get("highest_qualification", {}) or {})
+    d_raw = str(qual.get("degree", "") or "").strip()
+    c_raw = str(qual.get("course", "") or "").strip()
+    comb = normalize_master_text(str(qual.get("qualification_text", "") or f"{d_raw} {c_raw}"))
 
-MASTER_DATA_FILE = "skillgroomers_master_data_v6.json"
+    d_full, c_short = d_raw, c_raw
+    if any(t in comb for t in ["bachelor of engineering", "b e", "be civil", "be mechanical"]):
+        d_full, c_short = "Bachelor of Engineering", "B.E."
+    elif any(t in comb for t in ["bachelor of technology", "b tech", "btech"]):
+        d_full, c_short = "Bachelor of Technology", "B.Tech"
+    elif any(t in comb for t in ["master of technology", "m tech", "mtech"]):
+        d_full, c_short = "Master of Technology", "M.Tech"
+    elif any(t in comb for t in ["master of business administration", "mba"]):
+        d_full, c_short = "Master of Business Administration", "MBA"
+    elif "diploma" in comb:
+        d_full, c_short = "Diploma", "Diploma"
+
+    qual["degree"] = d_full
+    qual["course"] = c_short
+    result["highest_qualification"] = qual
+    return result
 
 
+# ------------------------------------------------------------
+# TAXONOMY & STRICT CONFIRMATION MATCHING
+# ------------------------------------------------------------
+@st.cache_data
 def load_skill_groomers_master_data():
     if not os.path.exists(MASTER_DATA_FILE):
-        raise FileNotFoundError(
-            f"Missing {MASTER_DATA_FILE}. Keep it in the same folder as this app."
-        )
-
-    with open(MASTER_DATA_FILE, "r", encoding="utf-8") as file:
-        master = json.load(file)
-
-    required = [
-        "core_roles",
-        "keywords",
-        "industries",
-        "locations",
-        "functional_area_records",
-        "education_records",
-    ]
-    missing = [key for key in required if key not in master]
-    if missing:
-        raise ValueError(
-            f"{MASTER_DATA_FILE} is missing required sections: {', '.join(missing)}"
-        )
-    return master
+        raise FileNotFoundError(f"Missing {MASTER_DATA_FILE} at {BASE_DIR}")
+    with open(MASTER_DATA_FILE, "r", encoding="utf-8") as f:
+        return json.load(f)
 
 
 MASTER_DATA = load_skill_groomers_master_data()
@@ -708,2420 +656,657 @@ EDUCATION_MASTER = MASTER_DATA["education_records"]
 
 
 def normalize_master_text(value):
-    """Normalize only for comparison; never submit this normalized wording."""
-    value = str(value or "").strip().lower()
-    value = value.replace("&", " and ")
-    value = value.replace("–", "-").replace("—", "-")
-    value = re.sub(r"[/,_\-]+", " ", value)
-    # Punctuation is ignored for matching, so B.E. == BE and B.Tech == B Tech.
-    value = re.sub(r"[^a-z0-9\s]+", " ", value)
-    value = re.sub(r"\s+", " ", value).strip()
-    return value
+    v = str(value or "").strip().lower().replace("&", " and ").replace("–", "-").replace("—", "-")
+    v = re.sub(r"[/,_\-]+", " ", v)
+    return re.sub(r"\s+", " ", re.sub(r"[^a-z0-9\s]+", " ", v)).strip()
 
 
 def tokens(value):
-    return {token for token in normalize_master_text(value).split() if len(token) > 1}
+    return {t for t in normalize_master_text(value).split() if len(t) > 1}
 
 
 def text_similarity(left, right):
-    left_n = normalize_master_text(left)
-    right_n = normalize_master_text(right)
-
-    if not left_n or not right_n:
-        return 0.0
-
-    if left_n == right_n:
-        return 1.0
-
-    if left_n in right_n or right_n in left_n:
-        shorter = min(len(left_n), len(right_n))
-        longer = max(len(left_n), len(right_n))
-        containment = shorter / longer if longer else 0
-        return max(0.86, containment)
-
-    left_tokens = tokens(left_n)
-    right_tokens = tokens(right_n)
-    token_score = 0.0
-    if left_tokens and right_tokens:
-        intersection = len(left_tokens & right_tokens)
-        union = len(left_tokens | right_tokens)
-        token_score = intersection / union if union else 0.0
-
-    sequence_score = SequenceMatcher(None, left_n, right_n).ratio()
-    return (0.58 * sequence_score) + (0.42 * token_score)
+    l_n, r_n = normalize_master_text(left), normalize_master_text(right)
+    if not l_n or not r_n: return 0.0
+    if l_n == r_n: return 1.0
+    if l_n in r_n or r_n in l_n:
+        return max(0.86, min(len(l_n), len(r_n)) / max(len(l_n), len(r_n)))
+    t_l, t_r = tokens(l_n), tokens(r_n)
+    t_score = len(t_l & t_r) / len(t_l | t_r) if (t_l and t_r) else 0.0
+    return (0.58 * SequenceMatcher(None, l_n, r_n).ratio()) + (0.42 * t_score)
 
 
-def best_named_match(value, names, minimum_score=0.58):
-    best_name = ""
-    best_score = 0.0
-
+def best_named_match(value, names, minimum_score=0.82):
+    best_n, best_s = "", 0.0
     for name in names:
-        score = text_similarity(value, name)
-        if score > best_score:
-            best_name = name
-            best_score = score
-
-    if best_score < minimum_score:
-        return "", best_score
-
-    return best_name, best_score
-
-
-def _combined_professional_evidence(data):
-    fields = [
-        data.get("core_role", ""),
-        data.get("functional_area", ""),
-        data.get("role", ""),
-        data.get("industry", ""),
-    ]
-    fields.extend(data.get("key_skills", []) or [])
-
-    jobs = data.get("work_experience", []) or []
-    for job in jobs[-3:]:
-        fields.append(job.get("designation", ""))
-        fields.append(job.get("company", ""))
-
-    return " ".join(str(v) for v in fields if v)
-
-
-def _recent_designation_evidence(data, limit=5):
-    """Return evidence from actual CV job titles only, newest roles weighted by inclusion.
-
-    This deliberately excludes AI-generated role/core-role labels and skills. Functional
-    Area is a career-track classification, so a supporting skill such as Safety or QA
-    must not override repeated designations such as Project Manager or Site Engineer.
-    """
-    jobs = sort_jobs(data.get("work_experience", []) or [])
-    recent_designations = [str(j.get("designation", "") or "") for j in jobs[-limit:]]
-    return normalize_master_text(" ".join(recent_designations))
-
-
-def _designation_evidence(data):
-    """Role-centric evidence used for deterministic primary-role decisions.
-
-    Skills such as QA, Safety or Project Management can appear in many CVs as
-    supporting capabilities. They should not override the candidate's actual
-    profession unless the designation/core role also supports them.
-    """
-    jobs = sort_jobs(data.get("work_experience", []) or [])
-    recent_designations = [str(j.get("designation", "") or "") for j in jobs[-3:]]
-    return normalize_master_text(" ".join([
-        str(data.get("role", "") or ""),
-        str(data.get("core_role", "") or ""),
-        *recent_designations,
-    ]))
+        s = text_similarity(value, name)
+        if s > best_s:
+            best_n, best_s = name, s
+    return (best_n, best_s) if best_s >= minimum_score else ("", best_s)
 
 
 def map_core_role(data, source_text=""):
-    """Return an exact Skill Groomers core-role name plus confidence."""
-    raw_core = str(data.get("core_role", "") or "")
-    role = str(data.get("role", "") or "")
-    skills = data.get("key_skills", []) or []
-    evidence = normalize_master_text(" ".join([raw_core, role, *skills]))
-    designation_evidence = _designation_evidence(data)
-    source_n = normalize_master_text(source_text or "")
+    raw = str(data.get("core_role", "") or "")
+    jobs = sort_jobs(data.get("work_experience", []))
+    recent_titles = [normalize_master_text(j.get("designation", "")) for j in reversed(jobs[:4])]
 
-    # Strong profession signals from current/recent designations should win
-    # over generic supporting skills. This prevents a civil/fitout engineer
-    # from becoming QAQC merely because Quality Assurance appears in skills.
-    if "billing" in designation_evidence:
-        target = "Billing"
-        if target in CORE_ROLE_MASTER:
-            return {
-                "name": target, "score": 0.995, "matched": True,
-                "review_required": False,
-                "reason": "Current/recent designation is primarily Billing",
-            }
+    rules = [
+        (["safety", "hse", "ehs"], "Safety"),
+        (["rebar detailer", "rebar draftsman"], "Rebar Detailing"),
+        (["mep"], "MEP"),
+        (["billing"], "Billing"),
+        (["qa qc", "qaqc", "quality engineer"], "QAQC"),
+        (["planning"], "Planning"),
+        (["quantity estimator"], "Quantity Estimator"),
+        (["quantity surveyor", "estimator"], "Estimator"),
+        (["project manager"], "Project Manager"),
+        (["site engineer", "civil engineer"], "Civil Engineer"),
+    ]
+    for t_n in recent_titles:
+        for triggers, target in rules:
+            if any(tr in t_n for tr in triggers) and target in CORE_ROLE_MASTER:
+                return {"name": target, "score": 0.99, "matched": True, "review_required": False}
 
-    fitout_or_civil = any(t in designation_evidence for t in [
-        "fitout engineer", "fit out engineer", "fitout executive",
-        "executive engineer", "civil engineer", "site engineer"
-    ])
-    civil_context = any(t in (designation_evidence + " " + source_n) for t in [
-        "civil", "construction", "interior", "fitout", "fit out", "site execution"
-    ])
-    if fitout_or_civil and civil_context:
-        target = "Civil Engineer"
-        if target in CORE_ROLE_MASTER:
-            return {
-                "name": target, "score": 0.99, "matched": True,
-                "review_required": False,
-                "reason": "Civil/fitout/site-engineering designation evidence",
-            }
-
-    # Exact website value from AI is accepted only after stronger designation
-    # rules above have had a chance to correct overly broad classifications.
-    for name in CORE_ROLE_MASTER:
-        if normalize_master_text(raw_core) == normalize_master_text(name):
-            return {
-                "name": name,
-                "score": 1.0,
-                "matched": True,
-                "review_required": False,
-                "reason": "Exact master match",
-            }
-
-    # Domain rules based on confirmed production classifications.
-    # Construction QA/QC profiles consistently use the exact SG core role QAQC.
-    if any(term in designation_evidence for term in ["qaqc", "qa qc", "quality engineer", "quality control engineer", "quality assurance engineer"]):
-        target = "QAQC"
-        if target in CORE_ROLE_MASTER:
-            return {
-                "name": target,
-                "score": 0.99,
-                "matched": True,
-                "review_required": False,
-                "reason": "QA/QC professional evidence",
-            }
-
-    if any(term in designation_evidence for term in ["safety", "ehs", "hse"]):
-        target = "Safety"
-        if target in CORE_ROLE_MASTER:
-            return {
-                "name": target,
-                "score": 0.98,
-                "matched": True,
-                "review_required": False,
-                "reason": "Safety/EHS evidence",
-            }
-
-    # Quantity Surveyor profiles in the existing production data use Estimator.
-    if any(term in designation_evidence for term in ["quantity surveyor", "quantity surveying", " qs "]):
-        target = "Estimator"
-        if target in CORE_ROLE_MASTER:
-            return {
-                "name": target,
-                "score": 0.92,
-                "matched": True,
-                "review_required": True,
-                "reason": "Quantity-surveying profile; production mapping commonly uses Estimator",
-            }
-
-    if "quantity estimator" in designation_evidence:
-        target = "Quantity Estimator"
-        if target in CORE_ROLE_MASTER:
-            return {
-                "name": target,
-                "score": 0.96,
-                "matched": True,
-                "review_required": False,
-                "reason": "Explicit quantity-estimator evidence",
-            }
-
-    candidates = [raw_core, role, *skills]
-    best_name = ""
-    best_score = 0.0
-    for candidate in candidates:
-        name, score = best_named_match(candidate, CORE_ROLE_MASTER, minimum_score=0.54)
-        if score > best_score:
-            best_name, best_score = name, score
-
-    return {
-        "name": best_name,
-        "score": round(best_score, 3),
-        "matched": bool(best_name),
-        "review_required": bool(best_name and best_score < 0.82),
-        "reason": "Best master similarity" if best_name else "No reliable master match",
-    }
-
-
-def _functional_record(record):
-    return {
-        "functionalAreaId": record.get("role_id"),
-        "functional_area": record.get("functional_area", ""),
-        "sub_functional_area": record.get("sub_functional_area", ""),
-        "role": record.get("role", ""),
-    }
-
-
-def _find_functional_id(role_id):
-    for record in FUNCTIONAL_AREA_MASTER:
-        if record.get("role_id") == role_id:
-            return record
-    return None
+    name, score = best_named_match(raw, CORE_ROLE_MASTER, minimum_score=0.85)
+    if name:
+        return {"name": name, "score": round(score, 3), "matched": True, "review_required": False}
+    return {"name": "", "score": 0.0, "matched": False, "review_required": True}
 
 
 def map_functional_area(data, source_text=""):
-    """
-    Map to one complete website hierarchy.
-    The returned Functional Area, Sub Functional Area, Role and ID
-    always come from the SAME website master record.
-    """
-    evidence = _combined_professional_evidence(data)
-    evidence_n = normalize_master_text(evidence + " " + (source_text or ""))
-    designation_n = _designation_evidence(data)
-    title_n = _recent_designation_evidence(data)
+    evidence = normalize_master_text(f"{data.get('core_role','')} {data.get('role','')} {data.get('functional_area','')} {source_text}")
+    jobs = sort_jobs(data.get("work_experience", []))
+    title_n = normalize_master_text(jobs[-1].get("designation", "") if jobs else "")
 
-    # ------------------------------------------------------------------
-    # DESIGNATION-FIRST FUNCTIONAL AREA ROUTING
-    # ------------------------------------------------------------------
-    # Functional Area represents the candidate's professional track. Actual
-    # CV job titles therefore outrank skills and AI summary labels. Supporting
-    # words such as "safety", "quality" or "project management" must not
-    # reclassify someone whose repeated designation says otherwise.
+    if any(t in title_n for t in ["safety officer", "safety engineer", "hse", "ehs"]):
+        rec = next((r for r in FUNCTIONAL_AREA_MASTER if r.get("role_id") == 49), None)
+        if rec: return {**rec, "functionalAreaId": 49, "matched": True, "review_required": False}
 
-    civil_context = any(
-        term in evidence_n
-        for term in ["civil", "construction", "interior", "fitout", "fit out", "site execution", "site supervision"]
-    )
+    if any(t in title_n for t in ["rebar detailer", "planning engineer", "planning manager"]):
+        rec = next((r for r in FUNCTIONAL_AREA_MASTER if r.get("role_id") == 66), None)
+        if rec: return {**rec, "functionalAreaId": 66, "matched": True, "review_required": False}
 
-    project_site_titles = [
-        "project manager", "project engineer", "fitout engineer", "fit out engineer",
-        "fitout executive", "fit out executive", "interior project",
-        "site engineer", "site supervisor", "civil engineer",
-        "senior executive interior", "executive interior"
-    ]
-    if any(term in title_n for term in project_site_titles) and civil_context:
-        record = _find_functional_id(59)
-        if record:
-            return {
-                **_functional_record(record),
-                "score": 0.995,
-                "matched": True,
-                "review_required": False,
-                "reason": "Current/recent CV designations indicate Civil/Interior Fit-Out/Project-Site career track",
-            }
+    if any(t in title_n for t in ["project manager", "site engineer", "civil engineer"]) and any(t in evidence for t in ["civil", "construction"]):
+        rec = next((r for r in FUNCTIONAL_AREA_MASTER if r.get("role_id") == 59), None)
+        if rec: return {**rec, "functionalAreaId": 59, "matched": True, "review_required": False}
 
-    # Safety is a primary Functional Area only when the JOB TITLE itself is a
-    # safety/HSE/EHS title. Merely mentioning safety/compliance in skills or
-    # responsibilities is supporting evidence and must not trigger this route.
-    safety_title_terms = [
-        "safety officer", "safety engineer", "safety manager", "safety executive",
-        "hse officer", "hse engineer", "hse manager", "hse executive",
-        "ehs officer", "ehs engineer", "ehs manager", "ehs executive",
-        "health safety environment"
-    ]
-    if any(term in title_n for term in safety_title_terms):
-        record = _find_functional_id(49)
-        if record:
-            return {
-                **_functional_record(record),
-                "score": 0.995,
-                "matched": True,
-                "review_required": False,
-                "reason": "Current/recent CV designation is explicitly Safety/HSE/EHS",
-            }
+    best, best_s = None, 0.0
+    for r in FUNCTIONAL_AREA_MASTER:
+        s = max(text_similarity(data.get("functional_area", ""), r.get("functional_area", "")), text_similarity(data.get("role", ""), r.get("role", "")))
+        if s > best_s:
+            best, best_s = r, s
 
-    # Construction planning / project-controls profiles -> ID 66.
-    # This handles candidates whose factual role is Planning / Project Controls
-    # but whose SG hierarchy belongs to construction/site engineering rather
-    # than the telecom-specific Project Manager record (ID 55).
-    planning_terms = [
-        "planning", "project planning", "project controls", "project control",
-        "project coordination", "planning manager", "planning engineer", "msp",
-        "primavera", "critical path"
-    ]
-    construction_planning_terms = [
-        "construction", "civil", "site", "residential", "building",
-        "real estate", "contractor", "project management"
-    ]
-    if any(term in evidence_n for term in planning_terms) and any(
-        term in evidence_n for term in construction_planning_terms
-    ):
-        record = _find_functional_id(66)
-        if record:
-            return {
-                **_functional_record(record),
-                "score": 0.97,
-                "matched": True,
-                "review_required": False,
-                "reason": "Construction planning/project-controls profile",
-            }
-
-    # QA/QC. Construction/site QAQC profiles in the validated SG records
-    # use Project Management / Site Engineers -> Construction... (ID 66).
-    qa_terms = ["qaqc", "qa qc", "quality control", "quality assurance", "quality engineer"]
-    construction_terms = [
-        "construction", "civil", "site", "residential", "real estate",
-        "building", "rcc", "concrete", "project management"
-    ]
-    qa_title_terms = [
-        "qaqc", "qa qc", "qa/qc", "quality engineer",
-        "quality control engineer", "quality assurance engineer",
-        "quality manager", "qa engineer", "qc engineer"
-    ]
-    if any(term in title_n for term in qa_title_terms):
-        target_id = 66 if any(term in evidence_n for term in construction_terms) else 45
-        record = _find_functional_id(target_id)
-        if record:
-            return {
-                **_functional_record(record),
-                "score": 0.97 if target_id == 66 else 0.91,
-                "matched": True,
-                "review_required": False,
-                "reason": (
-                    "Construction/site QAQC profile; aligned to validated SG classifications"
-                    if target_id == 66 else "QA/QC evidence"
-                ),
-            }
-
-
-    # Quantity-surveying / estimation profiles: existing production example
-    # is classified under Site Engineers -> Construction ... (ID 66).
-    quantity_terms = [
-        "quantity survey", "quantity surveying", "quantity take off", "estimation",
-        "estimator", "billing", "boq", "earthwork quantification", "costx", "agtek"
-    ]
-    raw_functional = normalize_master_text(data.get("functional_area", ""))
-    raw_role = normalize_master_text(data.get("role", ""))
-    raw_core = normalize_master_text(data.get("core_role", ""))
-
-    quantity_is_primary = (
-        any(term in raw_functional for term in quantity_terms)
-        or any(term in raw_role for term in quantity_terms)
-        or any(term in raw_core for term in quantity_terms)
-    )
-
-    if quantity_is_primary:
-        record = _find_functional_id(66)
-        if record:
-            return {
-                **_functional_record(record),
-                "score": 0.90,
-                "matched": True,
-                "review_required": True,
-                "reason": "Quantity surveying/estimation profile; aligned to existing production classification",
-            }
-
-    # MEP branches.
-    if any(term in evidence_n for term in ["hvac", "plumbing", "firefighting", "fire protection", "mechanical mep"]):
-        record = _find_functional_id(62)
-        if record:
-            return {
-                **_functional_record(record),
-                "score": 0.92,
-                "matched": True,
-                "review_required": False,
-                "reason": "Mechanical/MEP evidence",
-            }
-
-    if any(term in evidence_n for term in ["electrical engineer", "electrical mep", "revit mep", "ht lt"]):
-        record = _find_functional_id(60)
-        if record:
-            return {
-                **_functional_record(record),
-                "score": 0.92,
-                "matched": True,
-                "review_required": False,
-                "reason": "Electrical engineering evidence",
-            }
-
-    # HR / Recruitment.
-    if any(term in evidence_n for term in ["recruitment", "talent acquisition", "recruiter"]):
-        record = _find_functional_id(13)
-        if record:
-            return {
-                **_functional_record(record),
-                "score": 0.94,
-                "matched": True,
-                "review_required": False,
-                "reason": "Recruitment evidence",
-            }
-
-    if any(term in evidence_n for term in ["human resources", " hr ", "hrbp", "employee relation", "payroll"]):
-        record = _find_functional_id(12)
-        if record:
-            return {
-                **_functional_record(record),
-                "score": 0.90,
-                "matched": True,
-                "review_required": False,
-                "reason": "HR evidence",
-            }
-
-    # Generic scoring over every allowed website hierarchy.
-    best = None
-    best_score = 0.0
-
-    raw_fields = [
-        data.get("functional_area", ""),
-        data.get("role", ""),
-        data.get("core_role", ""),
-        *(data.get("key_skills", []) or []),
-    ]
-
-    explicit_telecom = any(
-        term in evidence_n
-        for term in ["telecom", "telecommunication", "fiber optic", "fibre optic", "rf engineer", "telecom engineer"]
-    )
-
-    for record in FUNCTIONAL_AREA_MASTER:
-        # Do not let generic "Project Management" similarity select a
-        # telecom-only website role when the CV contains no telecom evidence.
-        if record.get("role_id") in {55, 58} and not explicit_telecom:
-            continue
-
-        target_parts = [
-            record.get("functional_area", ""),
-            record.get("sub_functional_area", ""),
-            record.get("role", ""),
-        ]
-
-        score = 0.0
-        # Match each CV field against each hierarchy component.
-        for raw in raw_fields:
-            if not raw:
-                continue
-            local = max(text_similarity(raw, target) for target in target_parts)
-            score = max(score, local)
-
-        # Small bonus if several meaningful tokens occur in the combined evidence.
-        target_tokens = tokens(" ".join(target_parts))
-        evidence_tokens = tokens(evidence_n)
-        overlap = len(target_tokens & evidence_tokens)
-        if overlap >= 2:
-            score = min(1.0, score + 0.08)
-        elif overlap == 1:
-            score = min(1.0, score + 0.03)
-
-        if score > best_score:
-            best, best_score = record, score
-
-    if not best or best_score < 0.58:
-        return {
-            "functionalAreaId": None,
-            "functional_area": "",
-            "sub_functional_area": "",
-            "role": "",
-            "score": round(best_score, 3),
-            "matched": False,
-            "review_required": True,
-            "reason": "No reliable hierarchy match",
-        }
-
-    return {
-        **_functional_record(best),
-        "score": round(best_score, 3),
-        "matched": True,
-        "review_required": best_score < 0.80,
-        "reason": "Best complete-hierarchy master match",
-    }
+    if best and best_s >= 0.82:
+        return {**best, "functionalAreaId": best.get("role_id"), "matched": True, "review_required": False}
+    return {"functionalAreaId": None, "functional_area": "", "sub_functional_area": "", "role": "", "matched": False, "review_required": True}
 
 
 def map_industry(data):
-    """Map extracted industry to exact website name and industryId."""
     raw = str(data.get("industry", "") or "")
-    evidence = normalize_master_text(
-        " ".join([
-            raw,
-            str(data.get("core_role", "") or ""),
-            str(data.get("functional_area", "") or ""),
-        ])
-    )
-
-    # Exact match first.
-    for record in INDUSTRY_MASTER:
-        if normalize_master_text(raw) == normalize_master_text(record["name"]):
-            return {
-                "industryId": record["id"],
-                "name": record["name"],
-                "score": 1.0,
-                "matched": True,
-                "review_required": False,
-            }
-
-    semantic_ids = []
-    if any(t in evidence for t in ["construction", "civil", "cement", "metal", "building"]):
-        semantic_ids.append(6)
+    evidence = normalize_master_text(f"{raw} {data.get('core_role','')} {data.get('functional_area','')}")
+    if any(t in evidence for t in ["construction", "civil", "cement"]):
+        rec = next((x for x in INDUSTRY_MASTER if x["id"] == 6), None)
+        if rec: return {"industryId": 6, "name": rec["name"], "matched": True, "review_required": False}
     if any(t in evidence for t in ["real estate", "property"]):
-        semantic_ids.insert(0, 16)
-    if any(t in evidence for t in ["recruitment", "talent acquisition"]):
-        semantic_ids.insert(0, 17)
-    if any(t in evidence for t in ["oil and gas", "oil gas", "power", "infrastructure", "energy"]):
-        semantic_ids.insert(0, 13)
-    if any(t in evidence for t in ["architect", "interior design"]):
-        semantic_ids.insert(0, 23)
-    if any(t in evidence for t in ["hvac", "ventilation", "air conditioning"]):
-        semantic_ids.insert(0, 39)
+        rec = next((x for x in INDUSTRY_MASTER if x["id"] == 16), None)
+        if rec: return {"industryId": 16, "name": rec["name"], "matched": True, "review_required": False}
 
-    if semantic_ids:
-        wanted = semantic_ids[0]
-        record = next((x for x in INDUSTRY_MASTER if x["id"] == wanted), None)
-        if record:
-            return {
-                "industryId": record["id"],
-                "name": record["name"],
-                "score": 0.94,
-                "matched": True,
-                "review_required": False,
-            }
-
-    names = [item["name"] for item in INDUSTRY_MASTER if item.get("active", 1) == 1 and item["id"] != 58]
-    name, score = best_named_match(raw, names, minimum_score=0.56)
-
-    if name:
-        record = next(item for item in INDUSTRY_MASTER if item["name"] == name)
-        return {
-            "industryId": record["id"],
-            "name": record["name"],
-            "score": round(score, 3),
-            "matched": True,
-            "review_required": score < 0.80,
-        }
-
-    return {
-        "industryId": None,
-        "name": raw,
-        "score": round(score, 3),
-        "matched": False,
-        "review_required": True,
-    }
-
-
-def _keyword_exact_or_fuzzy(skill):
-    skill_n = normalize_master_text(skill)
-    if not skill_n:
-        return "", 0.0
-
-    # Exact normalized master option.
-    for master in KEYWORD_MASTER:
-        if normalize_master_text(master) == skill_n:
-            return master, 1.0
-
-    # Common aliases / normalizations.
-    aliases = [
-        (["autocad", "auto cad"], "Autocad"),
-        (["quantity takeoff", "quantity take off"], "Quantity take-off"),
-        (["quantity surveying", "quantity surveyor", "qs"], "QS"),
-        (["quantity estimation"], "Quantity Estimation"),
-        (["cost estimation", "cost estimating"], "cost estimation"),
-        (["primavera p6", "primavera"], "Primavera"),
-        (["microsoft project", "ms project", "msp"], "MSP"),
-        (["quality assurance"], "QA"),
-        (["quality control"], "Quality Control"),
-        (["ehs", "hse"], "HSE"),
-        (["revit mep"], " REVIT MEP"),
-    ]
-    for variants, exact in aliases:
-        if any(normalize_master_text(v) == skill_n or normalize_master_text(v) in skill_n for v in variants):
-            if exact in KEYWORD_MASTER:
-                return exact, 0.95
-
-    return best_named_match(skill, KEYWORD_MASTER, minimum_score=0.69)
-
-
-def _skill_phrase_count(source_normalized, phrase):
-    """Count a normalized phrase deterministically using token boundaries."""
-    phrase_n = normalize_master_text(phrase)
-    if not phrase_n or len(phrase_n) < 3:
-        return 0
-    pattern = r"(?<!\w)" + re.escape(phrase_n) + r"(?!\w)"
-    return len(re.findall(pattern, source_normalized))
+    name, s = best_named_match(raw, [i["name"] for i in INDUSTRY_MASTER if i.get("active", 1) == 1], minimum_score=0.82)
+    rec = next((x for x in INDUSTRY_MASTER if x["name"] == name), None)
+    if rec:
+        return {"industryId": rec["id"], "name": rec["name"].strip(), "matched": True, "review_required": False}
+    return {"industryId": None, "name": "", "matched": False, "review_required": True}
 
 
 def map_keywords(data, source_text=""):
-    """Return up to four deterministic exact Skill Groomers keyword names.
-
-    The final four are chosen primarily from the PDF text itself, not from
-    Gemini's changing top-skill shortlist. Gemini skills are only a fallback.
-    This makes repeated runs of the same CV produce the same SG key skills.
-    """
-    source = source_text or _combined_professional_evidence(data)
-    source_n = normalize_master_text(source)
-    profile_n = normalize_master_text(" ".join([
-        str(data.get("core_role", "") or ""),
-        str(data.get("functional_area", "") or ""),
-        str(data.get("role", "") or ""),
-        source,
-    ]))
-
-    # Stable master-data order is the final tie-breaker.
-    master_index = {name: i for i, name in enumerate(KEYWORD_MASTER)}
-    scores = {}
-    evidence = {}
-
-    def add(name, score, why):
-        if name not in master_index:
-            return
-        score = float(score)
-        if score > scores.get(name, float("-inf")):
-            scores[name] = score
-            evidence[name] = why
-
-    # 1) Direct phrases present in the actual PDF text.
-    # Longer phrases receive a small preference over generic one-word terms.
-    for name in KEYWORD_MASTER:
-        name_n = normalize_master_text(name)
-        if len(name_n) < 3:
-            continue
-        count = _skill_phrase_count(source_n, name)
-        if count:
-            token_bonus = min(len(name_n.split()), 4) * 5
-            frequency_bonus = min(count, 5) * 2
-            add(name, 100 + token_bonus + frequency_bonus,
-                f"PDF phrase match ({count} occurrence{'s' if count != 1 else ''})")
-
-    # 2) Deterministic aliases for common CV wording that differs from SG labels.
-    # An alias is only used when its wording actually occurs in the PDF text.
-    alias_rules = [
-        (["qa qc", "qa/qc", "quality assurance quality control"], "QAQC"),
-        (["quality assurance"], "QA"),
-        (["quality control"], "Quality Control"),
-        (["quality audit", "quality auditing"], "Quality Audit"),
-        (["auto cad", "autocad"], "Autocad"),
-        (["quantity surveying", "quantity surveyor"], "QS"),
-        (["quantity take off", "quantity takeoff"], "Quantity take-off"),
-        (["quantity estimation"], "Quantity Estimation"),
-        (["cost estimation", "cost estimating"], "cost estimation"),
-        (["primavera p6", "primavera"], "Primavera"),
-        (["microsoft project", "ms project"], "MSP"),
-        (["health safety environment", "health safety and environment", "hse"], "HSE"),
-        (["environment health safety", "ehs"], "HSE"),
-        (["talent acquisition"], "Talent Acquisition"),
-        (["project planning"], "project planning"),
-        (["project management"], "project management"),
-        (["billing engineering", "billing"], "Billing"),
-        (["ra bill", "ra bills", "running account bill", "running account bills"], "RA Bill"),
-    ]
-    for variants, master_name in alias_rules:
-        for variant in variants:
-            variant_n = normalize_master_text(variant)
-            if variant_n and _skill_phrase_count(source_n, variant_n):
-                add(master_name, 124 + min(len(variant_n.split()), 4) * 2,
-                    f"PDF alias match: {variant}")
-                break
-
-    # 3) Role-aware boosts. These NEVER create a skill by themselves; they only
-    # rank skills for which the PDF already supplied evidence above.
-    role_priority_groups = []
-    if any(t in profile_n for t in ["qa qc", "qaqc", "quality assurance", "quality control", "quality engineer"]):
-        role_priority_groups.append([
-            "QAQC", "Quality Control", "QA", "QC", "QMS", "Quality Audit", "Audit"
-        ])
-    if any(t in profile_n for t in ["planning engineer", "project planning", "project control", "planning manager"]):
-        role_priority_groups.append([
-            "Planning", "project planning", "Primavera", "MSP", "scheduling", "project coordination", "project management"
-        ])
-    if any(t in profile_n for t in ["billing engineer", "billing contract", "billing & contract", "billing and contract"]):
-        role_priority_groups.append([
-            "Billing", "RA Bill", "QS", "Quantity Estimation", "Quantity take-off", "cost estimation", "Estimation & Planning"
-        ])
-    elif any(t in profile_n for t in ["quantity survey", "estimator", "estimation"]):
-        role_priority_groups.append([
-            "QS", "Quantity take-off", "Quantity Estimation", "cost estimation", "Estimation & Planning", "Billing", "RA Bill"
-        ])
-    if any(t in profile_n for t in ["fitout", "fit out", "civil engineer", "site engineer"]):
-        role_priority_groups.append([
-            "Civil", "Billing", "Quality Control", "QA", "Autocad", "project planning", "cost estimation"
-        ])
-    if any(t in profile_n for t in ["safety", "hse", "ehs"]):
-        role_priority_groups.append([
-            "HSE", "safety", "safety manager", "HIRA", "Audit", "OH&S ", "HSE plan"
-        ])
-    if any(t in profile_n for t in ["recruitment", "talent acquisition", "recruiter"]):
-        role_priority_groups.append([
-            "Talent Acquisition", "Recruitment", "sourcing", "client coordination"
-        ])
-
-    for group in role_priority_groups:
-        for rank, name in enumerate(group):
-            if name in scores:
-                scores[name] += max(0, 30 - (rank * 4))
-
-    # 4) For the normal app flow, source_text is always available, so the final
-    # Skill Groomers selection does NOT depend on Gemini's varying skill shortlist.
-    # Keep the old factual-skill fallback only for legacy/manual calls where no
-    # PDF source text was supplied.
-    if not source_text:
-        raw_skills = clean_key_skills(data.get("key_skills", []))
-        for skill in raw_skills:
-            candidate, similarity = _keyword_exact_or_fuzzy(skill)
-            if candidate:
-                add(candidate, 70 + (similarity * 10), f"Factual skill fallback: {skill}")
-
-    ranked = sorted(
-        scores,
-        key=lambda name: (-scores[name], master_index.get(name, 10**9), normalize_master_text(name)),
-    )
-
-    # Avoid spending multiple SG slots on near-duplicate skill families.
-    # This affects only the max-4 Skill Groomers mapping; the factual CV skill
-    # list remains complete and is displayed separately to HR.
-    skill_families = [
-        {"qaqc", "qa", "qc", "quality control"},
-    ]
-
+    factual = clean_key_skills(data.get("key_skills", []) or [])
     selected = []
-    used_families = set()
-    for name in ranked:
-        name_n = normalize_master_text(name)
-        family_index = next(
-            (i for i, family in enumerate(skill_families) if name_n in family),
-            None,
-        )
-        if family_index is not None and family_index in used_families:
-            continue
-        selected.append(name)
-        if family_index is not None:
-            used_families.add(family_index)
+    for skill in factual:
+        clean = skill.strip().strip("'\"").strip()
+        matched = next((k for k in KEYWORD_MASTER if normalize_master_text(k) == normalize_master_text(clean)), None)
+        if matched and matched not in selected:
+            selected.append(matched.strip().strip("'\"").strip())
         if len(selected) == 4:
             break
-
     return selected
 
 
-LOCATION_ALIASES = {
-    "bangalore": "Bangalore / Bengaluru",
-    "bengaluru": "Bangalore / Bengaluru",
-    "delhi": "Delhi / NCR",
-    "ncr": "Delhi / NCR",
-    "hyderabad": "Hyderabad / Secunderabad",
-    "secunderabad": "Hyderabad / Secunderabad",
-    "odisha": "Odisha / Orissa",
-    "orissa": "Odisha / Orissa",
-    "uttarakhand": "Uttaranchal",
-    "tamil nadu": "Tamilnadu",
-    "usa": "US",
-    "united states": "US",
-    "united arab emirates": "UAE",
-}
+def map_location(value, cat=None):
+    v_n = normalize_master_text(value)
+    if not v_n:
+        return {"id": None, "name": "", "category": cat or "", "matched": False, "review_required": False}
+    item = next((i for i in LOCATION_MASTER if i.get("active", 1) == 1 and (cat is None or i.get("category") == cat) and normalize_master_text(i["name"]) == v_n), None)
+    if item:
+        return {"id": item["id"], "name": item["name"].strip(), "category": item["category"].strip(), "matched": True, "review_required": False}
+    return {"id": None, "name": "", "category": cat or "", "matched": False, "review_required": True}
 
 
-def map_location(value, expected_category=None):
-    """
-    HR rule: Skill Groomers location must be an EXACT master-data match.
-    If the CV wording does not exactly match an active SG location after
-    harmless case/spacing normalization, leave the SG ID blank and require
-    review. No city aliases and no fuzzy substitution are used.
-    """
-    value_n = normalize_master_text(value)
-    if not value_n:
-        return {
-            "id": None,
-            "name": "",
-            "category": expected_category or "",
-            "matched": False,
-            "review_required": False,
-            "reason": "No factual location in CV",
-        }
-
-    candidates = [
-        item for item in LOCATION_MASTER
-        if item.get("active", 1) == 1
-        and (expected_category is None or item.get("category") == expected_category)
-    ]
-
-    for item in candidates:
-        if normalize_master_text(item["name"]) == value_n:
-            return {
-                "id": item["id"],
-                "name": item["name"],
-                "category": item["category"],
-                "matched": True,
-                "review_required": False,
-                "reason": "Exact active Skill Groomers location match",
-            }
-
-    return {
-        "id": None,
-        "name": str(value or "").strip(),
-        "category": expected_category or "",
-        "matched": False,
-        "review_required": True,
-        "reason": "No exact Skill Groomers location match; HR review required",
-    }
-
-
-EDUCATION_ALIASES = {
-    "be": "be btech",
-    "b e": "be btech",
-    "btech": "be btech",
-    "b tech": "be btech",
-    "bachelor engineering": "be btech",
-    "bsc": "bachelor science",
-    "b sc": "bachelor science",
-    "msc": "masters science",
-    "m sc": "masters science",
-    "mtech": "masters technology",
-    "m tech": "masters technology",
-    "mba": "masters business administration",
-    "bba": "bachelor business administration",
-    "bcom": "bachelor commerce",
-    "b com": "bachelor commerce",
-    "mcom": "masters commerce",
-    "m com": "masters commerce",
-}
-
-
-def _education_component_score(raw, master):
-    raw_n = normalize_master_text(raw)
-    master_n = normalize_master_text(master)
-    if not raw_n or not master_n:
-        return 0.0
-
-    score = text_similarity(raw_n, master_n)
-
-    for alias, canonical in EDUCATION_ALIASES.items():
-        if alias in raw_n and canonical in master_n:
-            score = max(score, 0.94)
-
-    return score
-
-
-def _preferred_education_course(degree, course):
-    """Detect an explicit course family before considering specialization."""
-    evidence = normalize_master_text(f"{degree} {course}")
-
-    # Order matters: specific higher qualifications before generic tokens.
+def _match_course_family(comb):
     rules = [
-        (["m tech", "mtech", "master technology"], "M.Tech"),
-        (["m sc", "msc", "master science"], "M.Sc"),
-        (["mba", "pgdm", "master business administration"], "MBA / PGDM"),
-        (["mca"], "MCA"),
-        (["m com", "mcom"], "M.Com"),
-        (["b e", "be civil", "be mechanical", "be electrical", "bachelor engineering", "bachelor of engineering", "b tech", "btech"], "BE / B.Tech"),
-        (["b sc", "bsc", "bachelor science", "bachelor of science"], "Bachelor of Science (B.Sc)"),
-        (["b com", "bcom"], "B.Com"),
-        (["bba"], "BBA"),
-        (["bca"], "BCA"),
-        (["b arch", "barch", "bachelor architecture"], "Bachor of Arcitect (B. Arch.)"),
-        (["diploma"], "Diploma"),
-        (["hsc"], "HSC"),
-        (["ssc", "matriculation"], "SSC"),
-        (["iti"], "ITI"),
+        ([r"\bm\s*tech\b", r"\bmtech\b", r"\bmaster\s*(?:of\s*)?technology\b"], "Masters of Technology (M. Tech)"),
+        ([r"\bm\s*sc\b", r"\bmsc\b", r"\bmaster\s*(?:of\s*)?science\b"], "Masters of Science (M.Sc)"),
+        ([r"\bmba\b", r"\bpgdm\b", r"\bmaster\s*(?:of\s*)?business\s+administration\b"], "Masters of Business Administration (MBA / PGDM)"),
+        ([r"\bmca\b", r"\bmaster\s*(?:of\s*)?computer\s+applications?\b"], "Masters of Computer Application (MCA)"),
+        ([r"\bm\s*com\b", r"\bmcom\b", r"\bmaster\s*(?:of\s*)?commerce\b"], "Masters of Commerce (M.Com)"),
+        ([r"\bb\s*e\b", r"\bbe\b", r"\bbachelor\s*(?:of\s*)?engineering\b", r"\bb\s*tech\b", r"\bbtech\b", r"\bbachelor\s*(?:of\s*)?technology\b"], "BE / B.Tech"),
+        ([r"\bb\s*sc\b", r"\bbsc\b", r"\bbachelor\s*(?:of\s*)?science\b"], "Bachelor of Science (B.Sc)"),
+        ([r"\bb\s*com\b", r"\bbcom\b", r"\bbachelor\s*(?:of\s*)?commerce\b"], "Bachelor of Commerce (B.Com)"),
+        ([r"\bbba\b", r"\bbachelor\s*(?:of\s*)?business\s+administration\b"], "Bachelor of Business Administration (BBA)"),
+        ([r"\bbca\b", r"\bbachelor\s*(?:of\s*)?computer\s+applications?\b"], "Bachelor of Computer Application (BCA)"),
+        ([r"\bb\s*arch\b", r"\bbarch\b", r"\bbachelor\s*(?:of\s*)?architecture\b"], "Bachor of Arcitect (B. Arch.)"),
+        ([r"\bdiploma\b"], "Diploma"),
+        ([r"\bhsc\b", r"\b12th\b"], "HSC"),
+        ([r"\bssc\b", r"\b10th\b", r"\bmatriculation\b"], "SSC"),
+        ([r"\biti\b"], "ITI"),
     ]
-    for triggers, target in rules:
-        if any(trigger in evidence for trigger in triggers):
+    for patterns, target in rules:
+        if any(re.search(pat, comb) for pat in patterns):
             return target
     return ""
 
 
 def map_education(data):
-    """
-    Map the highest completed qualification to the SG education hierarchy.
-
-    V7 rule: identify the degree/course FIRST, then select specialization.
-    This prevents a specialization such as Civil from incorrectly turning a
-    BE Civil profile into Diploma Civil.
-    """
     qual = data.get("highest_qualification", {}) or {}
     degree = str(qual.get("degree", "") or "")
     course = str(qual.get("course", "") or "")
-    specialization = str(qual.get("specialization", "") or "")
-    completion_year = qual.get("year", "")
+    spec = str(qual.get("specialization", "") or "").strip()
+    year = qual.get("year", "")
+    qtext = str(qual.get("qualification_text", "") or "").strip()
 
-    preferred_course = _preferred_education_course(degree, course)
-    candidates = list(EDUCATION_MASTER)
+    comb = normalize_master_text(f"{degree} {course} {qtext}")
+    spec_n = normalize_master_text(spec)
 
-    if preferred_course:
-        preferred_n = normalize_master_text(preferred_course)
-        candidates = [
-            r for r in candidates
-            if normalize_master_text(r.get("course", "")) == preferred_n
-        ]
-
-    if not candidates:
-        candidates = list(EDUCATION_MASTER)
-
-    # Prefer an exact/contained specialization inside the already identified
-    # course family. This makes BE/B.Tech + Civil deterministically choose
-    # Graduation -> BE/B.Tech -> Civil (ID 31), never Diploma -> Civil (ID 116).
-    if preferred_course and specialization:
-        raw_spec_n = normalize_master_text(specialization)
-        exact_spec_candidates = []
-        for record in candidates:
-            master_spec_n = normalize_master_text(record.get("specialization", ""))
-            if master_spec_n and (
-                master_spec_n == raw_spec_n
-                or master_spec_n in raw_spec_n
-                or raw_spec_n in master_spec_n
-            ):
-                exact_spec_candidates.append(record)
-
-        if len(exact_spec_candidates) == 1:
-            exact = exact_spec_candidates[0]
-            return {
-                "educationId": exact["education_id"],
-                "qualification": exact["qualification"],
-                "course": exact["course"],
-                "specialization": exact["specialization"],
-                "completionYear": completion_year,
-                "score": 0.99,
-                "matched": True,
-                "review_required": False,
-                "reason": "Exact course-family and specialization match",
-            }
-
-    best = None
-    best_score = 0.0
-    for record in candidates:
-        course_score = max(
-            _education_component_score(degree, record["course"]),
-            _education_component_score(course, record["course"]),
-        )
-        spec_score = _education_component_score(specialization, record["specialization"])
-
-        # Once course family is explicit, specialization is the deciding factor.
-        if preferred_course:
-            score = (0.35 * course_score) + (0.65 * spec_score)
-            if normalize_master_text(record["course"]) == normalize_master_text(preferred_course):
-                score = min(1.0, score + 0.25)
-        else:
-            qual_score = _education_component_score(degree + " " + course, record["qualification"])
-            score = (0.52 * course_score) + (0.38 * spec_score) + (0.10 * qual_score)
-
-        spec_n = normalize_master_text(record["specialization"])
-        raw_spec_n = normalize_master_text(specialization)
-        if spec_n and raw_spec_n and (spec_n == raw_spec_n or spec_n in raw_spec_n):
-            score = min(1.0, score + 0.15)
-
-        if score > best_score:
-            best, best_score = record, score
-
-    if not best or best_score < 0.54:
+    generic_words = {"polytechnic", "diploma", "engineering", "degree", "general", "polytechnique", "technical", "studies", "institute"}
+    if not spec_n or spec_n in generic_words:
         return {
             "educationId": None,
-            "qualification": degree,
-            "course": course,
-            "specialization": specialization,
-            "completionYear": completion_year,
-            "score": round(best_score, 3),
+            "qualification": "",
+            "course": "",
+            "specialization": "",
+            "completionYear": str(year or ""),
             "matched": False,
             "review_required": True,
+            "reason": "Specialization branch not confirmed in CV"
+        }
+
+    pref_course = _match_course_family(comb)
+    if not pref_course:
+        return {
+            "educationId": None,
+            "qualification": "",
+            "course": "",
+            "specialization": "",
+            "completionYear": str(year or ""),
+            "matched": False,
+            "review_required": True,
+            "reason": "Course family not confirmed"
+        }
+
+    cands = [r for r in EDUCATION_MASTER if normalize_master_text(r.get("course", "")) == normalize_master_text(pref_course)]
+    if not cands:
+        return {
+            "educationId": None,
+            "qualification": "",
+            "course": "",
+            "specialization": "",
+            "completionYear": str(year or ""),
+            "matched": False,
+            "review_required": True,
+            "reason": "Course not found in master data"
+        }
+
+    cleaned_spec = re.sub(r"\s+engineering$", "", spec_n).strip()
+
+    exact = next((r for r in cands if normalize_master_text(r.get("specialization", "")) == spec_n), None)
+    if not exact and cleaned_spec:
+        exact = next((r for r in cands if normalize_master_text(r.get("specialization", "")) == cleaned_spec), None)
+
+    if exact:
+        return {
+            "educationId": exact["education_id"],
+            "qualification": exact["qualification"].strip(),
+            "course": exact["course"].strip(),
+            "specialization": exact["specialization"].strip(),
+            "completionYear": str(year or ""),
+            "matched": True,
+            "review_required": False
         }
 
     return {
-        "educationId": best["education_id"],
-        "qualification": best["qualification"],
-        "course": best["course"],
-        "specialization": best["specialization"],
-        "completionYear": completion_year,
-        "score": round(best_score, 3),
-        "matched": True,
-        "review_required": best_score < 0.80,
+        "educationId": None,
+        "qualification": "",
+        "course": "",
+        "specialization": "",
+        "completionYear": str(year or ""),
+        "matched": False,
+        "review_required": True,
+        "reason": f"Specialization '{spec}' not confirmed in Skill Groomers options"
     }
-
-
-# Deterministic city -> state relationships for active Skill Groomers metro-city options.
-# These are used ONLY to fill a missing SG state. They do not overwrite the factual
-# CV state stored in Excel/raw extraction. Ambiguous SG city labels such as Delhi / NCR
-# are deliberately omitted.
-SG_CITY_TO_STATE = {
-    "Mumbai": "Maharashtra",
-    "Pune": "Maharashtra",
-    "Nagpur": "Maharashtra",
-    "Ahmedabad": "Gujarat",
-    "Rajkot": "Gujarat",
-    "Bangalore / Bengaluru": "Karnataka",
-    "Chennai": "Tamilnadu",
-    "Hyderabad / Secunderabad": "Telangana",
-    "Kolkata": "West Bengal",
-    "Patna": "Bihar",
-    "Bhopal": "Madhya Pradesh",
-    "Indore": "Madhya Pradesh",
-    "Kanpur": "Uttar Pradesh",
-    "Lucknow": "Uttar Pradesh",
-    "Madgaon": "Goa",
-    "Ponda": "Goa",
-    "Shimla": "Himachal Pradesh",
-    "Chandigarh": "Union Territories",
-}
-
-
-def _infer_missing_state_from_city(city_mapping, state_mapping, factual_state=""):
-    """Infer an SG state only when the CV state is missing and city is unambiguous.
-
-    If the CV explicitly supplies a valid state that conflicts with the known city/state
-    relationship, keep the explicit state but flag it for HR review.
-    """
-    if not isinstance(city_mapping, dict) or not city_mapping.get("matched"):
-        return state_mapping
-
-    inferred_state_name = SG_CITY_TO_STATE.get(city_mapping.get("name", ""))
-    if not inferred_state_name:
-        return state_mapping
-
-    inferred = map_location(inferred_state_name, "States")
-    if not inferred.get("matched"):
-        return state_mapping
-
-    factual_state = str(factual_state or "").strip()
-
-    # Missing state in the CV: deterministic geographic inference is safe here.
-    if not factual_state:
-        inferred["reason"] = (
-            f"State inferred deterministically from exact city match: "
-            f"{city_mapping.get('name')} → {inferred_state_name}"
-        )
-        inferred["inferred_from_city"] = True
-        inferred["review_required"] = False
-        return inferred
-
-    # If CV supplied a state and both city/state matched SG exactly, detect conflicts.
-    if state_mapping.get("matched"):
-        if state_mapping.get("id") != inferred.get("id"):
-            result = dict(state_mapping)
-            result["review_required"] = True
-            result["location_conflict"] = True
-            result["reason"] = (
-                f"Location conflict: city {city_mapping.get('name')} maps to "
-                f"{inferred_state_name}, but CV states {factual_state}. HR review required."
-            )
-            return result
-
-    return state_mapping
 
 
 def build_skill_groomers_mapping(data, source_text=""):
-    """Build one exact, reviewable Skill Groomers website mapping."""
-    current_city = map_location(data.get("current_city", ""), "Top Metropolitan Cities")
-    current_state = map_location(data.get("current_state", ""), "States")
-    native_city = map_location(data.get("native_city", ""), "Top Metropolitan Cities")
-    native_state = map_location(data.get("native_state", ""), "States")
-
-    current_state = _infer_missing_state_from_city(
-        current_city, current_state, data.get("current_state", "")
-    )
-    native_state = _infer_missing_state_from_city(
-        native_city, native_state, data.get("native_state", "")
-    )
-
-    mapping = {
-        "core_role": map_core_role(data, source_text=source_text),
-        "functional_area": map_functional_area(data, source_text=source_text),
+    return {
+        "core_role": map_core_role(data, source_text),
+        "functional_area": map_functional_area(data, source_text),
         "industry": map_industry(data),
-        "key_skills": map_keywords(data, source_text=source_text),
+        "key_skills": map_keywords(data, source_text),
         "education": map_education(data),
-        "current_city": current_city,
-        "current_state": current_state,
-        "native_city": native_city,
-        "native_state": native_state,
+        "current_city": map_location(data.get("current_city", ""), "Top Metropolitan Cities"),
+        "current_state": map_location(data.get("current_state", ""), "States"),
+        "native_city": map_location(data.get("native_city", ""), "Top Metropolitan Cities"),
+        "native_state": map_location(data.get("native_state", ""), "States"),
     }
-
-    review_sections = {
-        "Core Role": mapping["core_role"],
-        "Functional Area": mapping["functional_area"],
-        "Industry": mapping["industry"],
-        "Education": mapping["education"],
-        "Current City": mapping["current_city"],
-        "Current State": mapping["current_state"],
-        "Native City": mapping["native_city"],
-        "Native State": mapping["native_state"],
-    }
-
-    mapping["review_reasons"] = [
-        {
-            "section": label,
-            "reason": section.get("reason", "Mapping requires HR review"),
-        }
-        for label, section in review_sections.items()
-        if isinstance(section, dict) and section.get("review_required", False)
-    ]
-    mapping["review_required"] = bool(mapping["review_reasons"])
-
-    return mapping
 
 
 def apply_mapping_to_excel_data(data, mapping):
-    """
-    V7 ACCURACY-FIRST RULE:
-    Excel keeps the factual/human-readable values extracted from the CV.
-    Skill Groomers mapping is stored separately and must never overwrite
-    education, employment, personal details, or other CV facts.
-    """
     excel_data = dict(data)
     excel_data["skill_groomers_ids"] = {
         "city": mapping["current_city"]["id"],
         "state": mapping["current_state"]["id"],
         "nativeCity": mapping["native_city"]["id"],
         "nativeState": mapping["native_state"]["id"],
-        "functionalAreaId": mapping["functional_area"]["functionalAreaId"],
-        "industryId": mapping["industry"]["industryId"],
-        "educationId": mapping["education"]["educationId"],
+        "functionalAreaId": mapping["functional_area"].get("functionalAreaId"),
+        "industryId": mapping["industry"].get("industryId"),
+        "educationId": mapping["education"].get("educationId"),
     }
     return excel_data
 
 
-def _website_datetime(value):
-    value = str(value or "").strip()
-    if not value:
-        return None
-    if re.fullmatch(r"\d{4}-\d{2}-\d{2}", value):
-        return f"{value} 00:00:00"
-    return value
-
-
-def build_skill_groomers_payload_preview(final_data, mapping):
-    """
-    Build the candidate structure intended for Skill Groomers.
-    Resume stays as a placeholder until the S3 upload step is added.
-    """
-    jobs = sort_jobs(final_data.get("work_experience", []))
-    current_job, previous_job = get_current_and_previous_jobs(jobs)
-
-    total_months = total_experience_months(jobs)
-    total_years, remaining_months = split_months(total_months)
-
-    job_changes = compute_job_changes(jobs)
-    avg_months = average_tenure_months(total_months, job_changes)
-    avg_years, avg_remaining_months = split_months(avg_months)
-
-    education = mapping["education"]
-    ids = final_data.get("skill_groomers_ids", {})
-
-    key_skills = final_data.get("key_skills", []) or []
-    salary = final_data.get("annual_salary", "")
-    try:
-        salary_value = float(str(salary).replace(",", "").strip()) if str(salary).strip() else None
-    except ValueError:
-        salary_value = None
-
-    payload = {
-        "fullName": final_data.get("candidate_name", ""),
-        "emailId": final_data.get("email", ""),
-        "mobileNumber": final_data.get("phone", ""),
-        "alternateNumber": final_data.get("alternate_phone") or None,
-        "dateOfBirth": _website_datetime(final_data.get("date_of_birth", "")),
-        "city": mapping["current_city"].get("id"),
-        "state": mapping["current_state"].get("id"),
-        "nativeCity": mapping["native_city"].get("id"),
-        "nativeState": mapping["native_state"].get("id"),
-        "coreRole": mapping["core_role"].get("name", "") if mapping["core_role"].get("matched") else final_data.get("core_role", ""),
-        "gender": final_data.get("gender", "") or None,
-        "rating": None,
-        "source": None,
-        "communication": None,
-        "employment": {
-            "keySkill": ",".join(mapping.get("key_skills", []) or key_skills),
-            "industryId": mapping["industry"].get("industryId"),
-            "functionalAreaId": mapping["functional_area"].get("functionalAreaId"),
-            "currentDesignation": current_job.get("designation", "") if current_job else "",
-            "currentEmployer": current_job.get("company", "") if current_job else "",
-            "startDate": _website_datetime(current_job.get("start_date", "")) if current_job else None,
-            "endDate": (
-                datetime.today().strftime("%Y-%m-%d 00:00:00")
-                if current_job and str(current_job.get("end_date", "")).strip().lower()
-                in ["present", "current", "ongoing", "till date", "now"]
-                else _website_datetime(current_job.get("end_date", "")) if current_job else None
-            ),
-            "previousDesignation": previous_job.get("designation", "") if previous_job else "",
-            "previousEmployer": previous_job.get("company", "") if previous_job else "",
-            # A year-only CV cannot support an exact month value in Skill Groomers.
-            # Leave these fields unresolved for HR instead of autofilling a false exact number.
-            "totalExperienceInYears": None if has_year_only_employment_dates(jobs) else total_years,
-            "totalExperienceInMonths": None if has_year_only_employment_dates(jobs) else remaining_months,
-            "averageTenureInYears": None if has_year_only_employment_dates(jobs) else avg_years,
-            "averageTenureInMonths": None if has_year_only_employment_dates(jobs) else avg_remaining_months,
-            "totalExperienceAsOfDate": datetime.today().strftime("%Y-%m-%d 00:00:00"),
-            "totalNumberOfJobs": str(number_of_employers(jobs)),
-            "annualSalary": salary_value,
-        },
-        "educations": (
-            [{
-                "educationId": education["educationId"],
-                "completionYear": str(education.get("completionYear", "") or ""),
-            }]
-            if education.get("matched") and education.get("educationId") is not None
-            else []
-        ),
-        "resume": "<uploaded resume URL will be inserted here>",
-    }
-
-    return payload
-
-
-# ---------- Populate the Excel template ----------
-
 def populate_excel(data, sheet):
-    # Personal Details
     sheet["C4"] = data.get("candidate_name", "")
     sheet["C5"] = data.get("email", "")
     sheet["C6"] = data.get("phone", "")
     sheet["C7"] = data.get("alternate_phone", "")
-# Date of Birth
-# Only use the DOB if it is explicitly mentioned in the CV
-    dob = data.get("date_of_birth", "")
-
-    sheet["C8"] = dob or ""
+    sheet["C8"] = data.get("date_of_birth", "")
     sheet["C9"] = data.get("gender", "")
     sheet["C10"] = data.get("current_city", "")
     sheet["C11"] = data.get("current_state", "")
     sheet["C12"] = data.get("native_city", "")
     sheet["C13"] = data.get("native_state", "")
-
-    # Core Role
-    sheet["C14"] = data.get("core_role", "")
-
-    # Employment / Skills
-    raw_skills = data.get("key_skills", [])
-    # Clean certifications from skills as a safety net
-    cleaned_skills = clean_key_skills(raw_skills)
-    sheet["C15"] = ", ".join(cleaned_skills)
-    # Human-readable CV classification for Excel; SG mapping stays separate.
+    sheet["C3"] = data.get("core_role", "")
+    sheet["C14"] = ""
+    sheet["C15"] = ", ".join(clean_key_skills(data.get("key_skills", [])))
     sheet["C16"] = data.get("functional_area", "")
     sheet["C17"] = data.get("role", "")
     sheet["C18"] = data.get("industry", "")
 
-    # Work experience
     jobs = sort_jobs(data.get("work_experience", []))
-    current_job, prev_job = get_current_and_previous_jobs(jobs)
+    cur, prev = get_current_and_previous_jobs(jobs)
+    if cur:
+        sheet["C20"] = cur.get("designation", "")
+        sheet["C21"] = cur.get("company", "")
+    if prev:
+        sheet["C23"] = prev.get("designation", "")
+        sheet["C24"] = prev.get("company", "")
 
-    # Current Employment
-    if current_job:
-        sheet["C20"] = current_job.get("designation", "")
-        sheet["C21"] = current_job.get("company", "")
-    else:
-        sheet["C20"] = ""
-        sheet["C21"] = ""
-
-    # Previous Employment
-    if prev_job:
-        sheet["C23"] = prev_job.get("designation", "")
-        sheet["C24"] = prev_job.get("company", "")
-    else:
-        sheet["C23"] = ""
-        sheet["C24"] = ""
-
-    # Total Experience - calculated directly in months
-    total_months = total_experience_months(jobs)
     sheet["C26"] = experience_display(jobs)
     sheet["C27"] = datetime.today().strftime("%Y-%m-%d")
+    sheet["C28"] = number_of_employers(jobs)
+    sal = parse_salary_lakhs(data.get("annual_salary", ""))
+    sheet["C29"] = sal if sal is not None else data.get("annual_salary", "")
+    changes = compute_job_changes(jobs)
+    sheet["C31"] = format_months(average_tenure_months(total_experience_months(jobs), changes))
 
-    num_emp = number_of_employers(jobs)
-    sheet["C28"] = num_emp
-
-    # Salary is only present when explicitly stated in the CV.
-    sheet["C29"] = data.get("annual_salary", "")
-
-    # Average Tenure = total experience / job changes (HR-requested formula)
-    job_changes = compute_job_changes(jobs)
-    avg_months = average_tenure_months(total_months, job_changes)
-    if has_year_only_employment_dates(jobs) and job_changes > 0:
-        upper_total = total_experience_months_upper_estimate(jobs)
-        upper_avg = average_tenure_months(upper_total, job_changes)
-        sheet["C31"] = f"Approx. {format_months(avg_months)} – {format_months(upper_avg)}"
-    else:
-        sheet["C31"] = format_months(avg_months)
-
-    # Education
     qual = data.get("highest_qualification", {})
-    sheet["C33"] = qual.get("degree", "")          # Qualification (full name)
-    sheet["C34"] = qual.get("year", "")            # Year of Passing
-    sheet["C35"] = qual.get("course", "")          # Course (acronym)
-    sheet["C36"] = qual.get("specialization", "")  # Specialization
-
-
-# ---------- HR Review UI helpers ----------
-
-def _safe_index(options, value):
-    """Return a safe selectbox index for value."""
-    try:
-        return options.index(value)
-    except ValueError:
-        return 0
-
-
-def _active_location_options(category=None):
-    records = [
-        item for item in LOCATION_MASTER
-        if item.get("active", 1) == 1
-        and (category is None or item.get("category") == category)
-    ]
-    return ["— Not selected —"] + sorted(
-        {str(item.get("name", "")).strip() for item in records if str(item.get("name", "")).strip()},
-        key=str.lower
-    )
-
-
-def _location_id_from_name(name, category=None):
-    if not name or name == "— Not selected —":
-        return None
-    for item in LOCATION_MASTER:
-        if (
-            item.get("active", 1) == 1
-            and str(item.get("name", "")).strip() == name
-            and (category is None or item.get("category") == category)
-        ):
-            return item.get("id")
-    return None
-
-
-def _core_role_options():
-    return ["— Not selected —"] + sorted(
-        {str(name).strip() for name in CORE_ROLE_MASTER if str(name).strip()},
-        key=str.lower
-    )
-
-
-def _industry_options():
-    return ["— Not selected —"] + sorted(
-        {
-            str(item.get("name", "")).strip()
-            for item in INDUSTRY_MASTER
-            if item.get("active", 1) == 1 and str(item.get("name", "")).strip()
-        },
-        key=str.lower
-    )
-
-
-def _industry_id_from_name(name):
-    if not name or name == "— Not selected —":
-        return None
-    for item in INDUSTRY_MASTER:
-        if item.get("active", 1) == 1 and str(item.get("name", "")).strip() == name:
-            return item.get("id")
-    return None
-
-
-def _functional_role_options():
-    options = []
-    for item in FUNCTIONAL_AREA_MASTER:
-        role = str(item.get("role", "")).strip()
-        if not role:
-            continue
-        label = (
-            f"{item.get('functional_area', '')} → "
-            f"{item.get('sub_functional_area', '')} → {role}"
-        )
-        options.append((label, item))
-    options.sort(key=lambda pair: pair[0].lower())
-    return options
-
-
-def _education_options():
-    options = []
-    for item in EDUCATION_MASTER:
-        label = (
-            f"{item.get('qualification', '')} → "
-            f"{item.get('course', '')} → "
-            f"{item.get('specialization', '')}"
-        )
-        options.append((label, item))
-    options.sort(key=lambda pair: pair[0].lower())
-    return options
-
-
-
-def _display_value(label, value):
-    """Premium compact read-only factual field for HR review."""
-    shown = value if value not in (None, "") else "—"
-    st.markdown(
-        f'<div class="field-label">{label}</div>'
-        f'<div class="field-value">{shown}</div>',
-        unsafe_allow_html=True,
-    )
-
-
-
-SG_ADD_CANDIDATE_URL = "https://skillgroomers.projects-digitalgem.com/main/candidate/new"
-
-
-def _sg_date_for_form(value):
-    """Convert YYYY-MM / YYYY-MM-DD website values into DD/MM/YYYY for SG form."""
-    value = str(value or "").strip()
-    if not value:
-        return ""
-    if value.lower() in {"present", "current", "ongoing", "till date", "now"}:
-        return datetime.today().strftime("%d/%m/%Y")
-    for fmt in ("%Y-%m-%d %H:%M:%S", "%Y-%m-%d", "%Y-%m"):
-        try:
-            parsed = datetime.strptime(value, fmt)
-            # Month-only CV dates are intentionally represented as first of month
-            # because the SG date control requires a day.
-            return parsed.strftime("%d/%m/%Y")
-        except ValueError:
-            continue
-    return value
-
-
-def build_skill_groomers_form_transfer(
-    data,
-    reviewed_payload,
-    selected_core,
-    selected_func_item,
-    selected_industry,
-    selected_keywords,
-    selected_city,
-    selected_state,
-    selected_native_city,
-    selected_native_state,
-    selected_edu_item,
-):
-    """
-    Build browser-extension transfer data.
-    Only HR-reviewed/factual values are included; no authentication data is exported.
-    """
-    employment = reviewed_payload.get("employment", {}) or {}
-    jobs = sort_jobs(data.get("work_experience", []))
-    current_job, _ = get_current_and_previous_jobs(jobs)
-
-    functional_area = ""
-    functional_role = ""
-    if selected_func_item:
-        functional_area = str(selected_func_item.get("functional_area", "") or "")
-        functional_role = str(selected_func_item.get("role", "") or "")
-
-    qualification = ""
-    course = ""
-    specialization = ""
-    if selected_edu_item:
-        qualification = str(selected_edu_item.get("qualification", "") or "")
-        course = str(selected_edu_item.get("course", "") or "")
-        specialization = str(selected_edu_item.get("specialization", "") or "")
-
-    current_end = current_job.get("end_date", "") if current_job else ""
-
-    return {
-        "version": 1,
-        "candidate": {
-            "coreRole": selected_core if selected_core != "— Not selected —" else "",
-            "fullName": str(reviewed_payload.get("fullName", "") or ""),
-            "emailId": str(reviewed_payload.get("emailId", "") or ""),
-            "mobileNumber": str(reviewed_payload.get("mobileNumber", "") or ""),
-            "alternateNumber": str(reviewed_payload.get("alternateNumber", "") or ""),
-            "dateOfBirth": _sg_date_for_form(data.get("date_of_birth", "")),
-            "gender": str(data.get("gender", "") or ""),
-            "currentCity": "" if selected_city == "— Not selected —" else selected_city,
-            "currentState": "" if selected_state == "— Not selected —" else selected_state,
-            "nativeCity": "" if selected_native_city == "— Not selected —" else selected_native_city,
-            "nativeState": "" if selected_native_state == "— Not selected —" else selected_native_state,
-            "keySkills": list(selected_keywords or [])[:4],
-            "functionalArea": functional_area,
-            "role": functional_role,
-            "industry": "" if selected_industry == "— Not selected —" else selected_industry,
-            "currentDesignation": str(employment.get("currentDesignation", "") or ""),
-            "currentEmployer": str(employment.get("currentEmployer", "") or ""),
-            "startDate": _sg_date_for_form(employment.get("startDate", "")),
-            "endDate": _sg_date_for_form(current_end),
-            "previousDesignation": str(employment.get("previousDesignation", "") or ""),
-            "previousEmployer": str(employment.get("previousEmployer", "") or ""),
-            "totalExperienceInYears": employment.get("totalExperienceInYears"),
-            "totalExperienceInMonths": employment.get("totalExperienceInMonths"),
-            "totalExperienceAsOfDate": _sg_date_for_form(
-                employment.get("totalExperienceAsOfDate", "")
-            ),
-            "totalNumberOfJobs": str(employment.get("totalNumberOfJobs", "") or ""),
-            "annualSalaryLakh": employment.get("annualSalary"),
-            "averageTenureInYears": employment.get("averageTenureInYears"),
-            "averageTenureInMonths": employment.get("averageTenureInMonths"),
-            "qualification": qualification,
-            "course": course,
-            "specialization": specialization,
-            "completionYear": str(
-                ((reviewed_payload.get("educations") or [{}])[0]).get("completionYear", "")
-                if reviewed_payload.get("educations")
-                else ""
-            ),
-        }
-    }
-
-
-def skill_groomers_transfer_url(transfer):
-    """
-    Put the transfer JSON in the URL fragment.
-    Fragments are not sent to the Skill Groomers server; the installed extension reads it locally.
-    """
-    raw = json.dumps(transfer, ensure_ascii=False, separators=(",", ":")).encode("utf-8")
-    token = base64.urlsafe_b64encode(raw).decode("ascii").rstrip("=")
-    return f"{SG_ADD_CANDIDATE_URL}#cvfill={urllib.parse.quote(token)}"
-
-
-def _render_review_card(filename, file_info):
-    """
-    Fast HR review workflow.
-    Goal: most clean CVs can be reviewed in ~30–60 seconds.
-    Confirmed CV facts stay read-only; Skill Groomers classifications are prefilled.
-    HR only opens the edit section when something needs changing.
-    """
-    data = file_info["factual_data"]
-    mapping = file_info["mapping"]
-    payload = file_info["payload_preview"]
-    candidate = file_info["candidate_name"]
-
-    jobs = sort_jobs(data.get("work_experience", []))
-    current_job, previous_job = get_current_and_previous_jobs(jobs)
-    total_months = total_experience_months(jobs)
-    job_changes = compute_job_changes(jobs)
-    avg_months = average_tenure_months(total_months, job_changes)
-    factual_edu = data.get("highest_qualification", {}) or {}
-
-    st.markdown(
-        f'<div class="candidate-chip">QUICK REVIEW</div>'
-        f'<h2 style="margin:0 0 4px 0">{candidate}</h2>'
-        f'<div class="review-subtitle">'
-        f'Check the summary. Open Edit classifications only if something needs changing.'
-        f'</div>',
-        unsafe_allow_html=True,
-    )
-
-    if data.get("_employment_extraction_warning"):
-        st.error(
-            "Employment section detected, but no job history was extracted. "
-            "Do not approve this candidate until the employment extraction is reviewed."
-        )
-
-    # ---------------------------------------------------------------
-    # 1. FAST FACT CHECK
-    # ---------------------------------------------------------------
-    st.markdown("### 1. Candidate Check")
-
-    m1, m2, m3, m4 = st.columns(4)
-    year_only_dates = has_year_only_employment_dates(jobs)
-    with m1:
-        _metric_card("Experience*" if year_only_dates else "Experience", experience_display(jobs))
-    with m2:
-        if year_only_dates and job_changes > 0:
-            upper_total = total_experience_months_upper_estimate(jobs)
-            upper_avg = average_tenure_months(upper_total, job_changes)
-            avg_display = f"Approx. {format_months(avg_months)} – {format_months(upper_avg)}"
-        else:
-            avg_display = format_months(avg_months)
-        _metric_card("Avg. Tenure*" if year_only_dates else "Avg. Tenure", avg_display)
-    with m3:
-        _metric_card("Employers", number_of_employers(jobs))
-    with m4:
-        _metric_card("Job Changes", job_changes)
-
-    if year_only_dates:
-        st.warning(
-            "Some employment dates in this CV contain only a year. "
-            "Exact month-level experience cannot be determined from those periods. "
-            "The app therefore shows an approximate range: the lower estimate uses elapsed-year "
-            "differences, while the upper estimate uses full calendar-year coverage. "
-            "Month-precise jobs still use the normal inclusive-month calculation."
-        )
-
-    _info_grid(
-        [
-            ("Candidate", data.get("candidate_name", "")),
-            ("Email", data.get("email", "")),
-            ("Mobile", data.get("phone", "")),
-            (
-                "Current Employment",
-                " — ".join(
-                    x for x in [
-                        current_job.get("designation", "") if current_job else "",
-                        current_job.get("company", "") if current_job else "",
-                    ] if x
-                ),
-            ),
-            (
-                "Previous Employment",
-                " — ".join(
-                    x for x in [
-                        previous_job.get("designation", "") if previous_job else "",
-                        previous_job.get("company", "") if previous_job else "",
-                    ] if x
-                ),
-            ),
-            (
-                "Education",
-                " | ".join(
-                    x for x in [
-                        factual_edu.get("degree", ""),
-                        factual_edu.get("specialization", ""),
-                        str(factual_edu.get("year", "") or ""),
-                    ] if x
-                ),
-            ),
-        ],
-        columns=3,
-    )
-
-    # ---------------------------------------------------------------
-    # 2. SUGGESTED SG MAPPING SUMMARY
-    # ---------------------------------------------------------------
-    st.markdown("### 2. Suggested Skill Groomers Mapping")
-
-    sg_core = mapping.get("core_role", {}) or {}
-    sg_func = mapping.get("functional_area", {}) or {}
-    sg_industry = mapping.get("industry", {}) or {}
-    sg_edu = mapping.get("education", {}) or {}
-    sg_city = mapping.get("current_city", {}) or {}
-    sg_state = mapping.get("current_state", {}) or {}
-    sg_native_city = mapping.get("native_city", {}) or {}
-    sg_native_state = mapping.get("native_state", {}) or {}
-
-    functional_path = " → ".join(
-        x for x in [
-            sg_func.get("functional_area", ""),
-            sg_func.get("sub_functional_area", ""),
-            sg_func.get("role", ""),
-        ] if x
-    )
-    education_path = " → ".join(
-        x for x in [
-            sg_edu.get("qualification", ""),
-            sg_edu.get("course", ""),
-            sg_edu.get("specialization", ""),
-        ] if x
-    )
-    current_location = ", ".join(
-        x for x in [sg_city.get("name", ""), sg_state.get("name", "")] if x
-    )
-    native_location = ", ".join(
-        x for x in [sg_native_city.get("name", ""), sg_native_state.get("name", "")] if x
-    )
-    mapped_keywords = mapping.get("key_skills", []) or []
-
-    _info_grid(
-        [
-            ("Core Role", sg_core.get("name", "")),
-            ("Industry", sg_industry.get("name", "")),
-            ("Functional Area", functional_path),
-            ("Key Skills", ", ".join(mapped_keywords[:4])),
-            ("Current Location", current_location),
-            ("Native Location", native_location),
-            ("Education", education_path),
-        ],
-        columns=2,
-    )
-
-    review_reasons = mapping.get("review_reasons", []) or []
-    if review_reasons:
-        st.warning(
-            f"{len(review_reasons)} item(s) need attention. "
-            "Review the highlighted reason(s) below before approval."
-        )
-        for item in review_reasons:
-            st.write(
-                f"⚠️ **{item.get('section', 'Mapping')}** — "
-                f"{item.get('reason', 'Review required')}"
-            )
-    else:
-        st.success("No mapping conflicts or unresolved fields detected.")
-
-    # ---------------------------------------------------------------
-    # 3. EDIT ONLY WHEN NEEDED
-    # ---------------------------------------------------------------
-    with st.expander(
-        "✏️ Edit Skill Groomers classifications",
-        expanded=bool(review_reasons),
-    ):
-        st.caption(
-            "The suggested values are already selected. "
-            "Change only the fields that are incorrect or unresolved."
-        )
-
-        # Core Role
-        _cv_source_note("CV says", data.get("core_role", "") or "Not provided")
-        core_options = _core_role_options()
-        current_core = sg_core.get("name", "")
-        selected_core = st.selectbox(
-            "Core Role",
-            core_options,
-            index=_safe_index(core_options, current_core),
-            key=f"sg_core_{filename}",
-        )
-
-        # Functional Area
-        functional_options = _functional_role_options()
-        functional_labels = ["— Not selected —"] + [
-            label for label, _ in functional_options
-        ]
-        current_fid = sg_func.get("functionalAreaId")
-        current_func_label = "— Not selected —"
-        for label, item in functional_options:
-            if item.get("role_id") == current_fid:
-                current_func_label = label
-                break
-
-        selected_func_label = st.selectbox(
-            "Functional Area → Sub Functional Area → Role",
-            functional_labels,
-            index=_safe_index(functional_labels, current_func_label),
-            key=f"sg_func_{filename}",
-        )
-        selected_func_item = next(
-            (item for label, item in functional_options if label == selected_func_label),
-            None,
-        )
-
-        # Industry
-        _cv_source_note("CV says", data.get("industry", "") or "Not provided")
-        industry_options = _industry_options()
-        current_industry = sg_industry.get("name", "")
-        selected_industry = st.selectbox(
-            "Industry",
-            industry_options,
-            index=_safe_index(industry_options, current_industry),
-            key=f"sg_industry_{filename}",
-        )
-
-        # Key Skills
-        # Show every factual skill extracted from the CV immediately above the
-        # separate Skill Groomers selector. The factual list is unrestricted;
-        # only the SG website selection below is limited to four master keywords.
-        factual_skills = clean_key_skills(data.get("key_skills", []) or [])
-        st.markdown("**CV Key Skills**")
-        if factual_skills:
-            st.caption(" • ".join(str(skill) for skill in factual_skills))
-        else:
-            st.caption("Not provided in CV")
-
-        keyword_options = sorted(
-            {
-                str(keyword).strip()
-                for keyword in KEYWORD_MASTER
-                if str(keyword).strip()
-            },
-            key=str.lower,
-        )
-        default_keywords = [
-            keyword for keyword in mapped_keywords
-            if keyword in keyword_options
-        ][:4]
-        selected_keywords = st.multiselect(
-            "Key Skills (max 4)",
-            keyword_options,
-            default=default_keywords,
-            max_selections=4,
-            key=f"sg_keywords_{filename}",
-        )
-
-        # Location
-        st.markdown("#### Location")
-        current_cv_location = ", ".join(
-            x for x in [data.get("current_city", ""), data.get("current_state", "")]
-            if x
-        ) or "Not provided"
-        native_cv_location = ", ".join(
-            x for x in [data.get("native_city", ""), data.get("native_state", "")]
-            if x
-        ) or "Not provided"
-        _cv_source_note(
-            "CV location",
-            f"Current: {current_cv_location} | Native: {native_cv_location}",
-        )
-
-        city_options = _active_location_options("Top Metropolitan Cities")
-        state_options = _active_location_options("States")
-        l1, l2 = st.columns(2)
-
-        with l1:
-            mapped_city = sg_city.get("name", "") if sg_city.get("matched") else "— Not selected —"
-            selected_city = st.selectbox(
-                "Current City",
-                city_options,
-                index=_safe_index(city_options, mapped_city),
-                key=f"sg_city_{filename}",
-            )
-
-        with l2:
-            mapped_state = sg_state.get("name", "") if sg_state.get("matched") else "— Not selected —"
-            selected_state = st.selectbox(
-                "Current State",
-                state_options,
-                index=_safe_index(state_options, mapped_state),
-                key=f"sg_state_{filename}",
-            )
-
-        n1, n2 = st.columns(2)
-        with n1:
-            mapped_native_city = (
-                sg_native_city.get("name", "")
-                if sg_native_city.get("matched")
-                else "— Not selected —"
-            )
-            selected_native_city = st.selectbox(
-                "Native City",
-                city_options,
-                index=_safe_index(city_options, mapped_native_city),
-                key=f"sg_native_city_{filename}",
-            )
-
-        with n2:
-            mapped_native_state = (
-                sg_native_state.get("name", "")
-                if sg_native_state.get("matched")
-                else "— Not selected —"
-            )
-            selected_native_state = st.selectbox(
-                "Native State",
-                state_options,
-                index=_safe_index(state_options, mapped_native_state),
-                key=f"sg_native_state_{filename}",
-            )
-
-        # Education
-        st.markdown("#### Education")
-        _cv_source_note(
-            "CV education",
-            " | ".join([
-                str(factual_edu.get("degree", "") or "—"),
-                str(factual_edu.get("course", "") or "—"),
-                str(factual_edu.get("specialization", "") or "—"),
-                str(factual_edu.get("year", "") or "—"),
-            ]),
-        )
-
-        education_options = _education_options()
-        education_labels = ["— Not selected —"] + [
-            label for label, _ in education_options
-        ]
-        current_eid = sg_edu.get("educationId")
-        current_edu_label = "— Not selected —"
-        for label, item in education_options:
-            if item.get("education_id") == current_eid:
-                current_edu_label = label
-                break
-
-        selected_edu_label = st.selectbox(
-            "Qualification → Course → Specialization",
-            education_labels,
-            index=_safe_index(education_labels, current_edu_label),
-            key=f"sg_edu_{filename}",
-        )
-        selected_edu_item = next(
-            (item for label, item in education_options if label == selected_edu_label),
-            None,
-        )
-
-        completion_year = str(factual_edu.get("year", "") or "")
-        _display_value("Completion Year (locked from CV)", completion_year)
-
-    # ---------------------------------------------------------------
-    # 4. REVIEWED PAYLOAD
-    # ---------------------------------------------------------------
-    reviewed_payload = dict(payload)
-    reviewed_payload["coreRole"] = (
-        None if selected_core == "— Not selected —" else selected_core
-    )
-    reviewed_payload["city"] = _location_id_from_name(
-        selected_city, "Top Metropolitan Cities"
-    )
-    reviewed_payload["state"] = _location_id_from_name(
-        selected_state, "States"
-    )
-    reviewed_payload["nativeCity"] = _location_id_from_name(
-        selected_native_city, "Top Metropolitan Cities"
-    )
-    reviewed_payload["nativeState"] = _location_id_from_name(
-        selected_native_state, "States"
-    )
-
-    reviewed_payload["employment"] = dict(payload.get("employment", {}))
-    reviewed_payload["employment"]["keySkill"] = ",".join(selected_keywords)
-    reviewed_payload["employment"]["industryId"] = _industry_id_from_name(
-        selected_industry
-    )
-    reviewed_payload["employment"]["functionalAreaId"] = (
-        selected_func_item.get("role_id") if selected_func_item else None
-    )
-    reviewed_payload["educations"] = (
-        [{
-            "educationId": selected_edu_item.get("education_id"),
-            "completionYear": completion_year,
-        }]
-        if selected_edu_item else []
-    )
-    file_info["reviewed_payload"] = reviewed_payload
-
-    # ---------------------------------------------------------------
-    # 5. ONE-STEP APPROVAL
-    # ---------------------------------------------------------------
-    st.markdown("### 3. Approve")
-
-    approve_key = f"approved_{filename}"
-    if approve_key not in st.session_state:
-        st.session_state[approve_key] = False
-
-    st.caption(
-        "If the summary is correct, approval is one click. "
-        "You only need to open the edit section when a value needs changing."
-    )
-
-    if st.button(
-        "✅ Approve Candidate",
-        key=f"approve_btn_{filename}",
-        use_container_width=True,
-    ):
-        st.session_state[approve_key] = True
-        st.success("Candidate approved for Skill Groomers submission.")
-
-    if st.session_state[approve_key]:
-        st.success("✅ Approved")
-    else:
-        st.info("Not approved yet.")
-
-    with st.expander("Technical payload preview"):
-        st.json(reviewed_payload)
-
-    transfer = build_skill_groomers_form_transfer(
-        data=data,
-        reviewed_payload=reviewed_payload,
-        selected_core=selected_core,
-        selected_func_item=selected_func_item,
-        selected_industry=selected_industry,
-        selected_keywords=selected_keywords,
-        selected_city=selected_city,
-        selected_state=selected_state,
-        selected_native_city=selected_native_city,
-        selected_native_state=selected_native_state,
-        selected_edu_item=selected_edu_item,
-    )
-    transfer_url = skill_groomers_transfer_url(transfer)
-
-    if st.session_state[approve_key]:
-        st.markdown(
-            f"""
-            <a href="{transfer_url}" target="_blank" rel="noopener noreferrer"
-               style="
-                   display:block;
-                   width:100%;
-                   text-align:center;
-                   padding:0.72rem 1rem;
-                   border-radius:0.55rem;
-                   background:#433adb;
-                   color:white;
-                   font-weight:700;
-                   text-decoration:none;
-                   margin-top:0.55rem;
-               ">
-               ⚡ Open Skill Groomers & Fill Candidate
-            </a>
-            """,
-            unsafe_allow_html=True,
-        )
-        st.caption(
-            "Requires the Skill Groomers AutoFill Chrome extension. "
-            "The extension fills the form; HR still reviews and clicks Skill Groomers' own Save button."
-        )
-    else:
-        st.button(
-            "⚡ Open Skill Groomers & Fill Candidate",
-            key=f"export_sg_disabled_{filename}",
-            use_container_width=True,
-            disabled=True,
-            help="Approve the candidate first.",
-        )
-
-
-
-# ---------- Compact review/debug display helpers ----------
-
-def _clean_display(value):
-    if value in (None, "", [], {}):
-        return "—"
-    return str(value)
-
-
+    sheet["C33"] = qual.get("qualification_text", "") or qual.get("degree", "")
+    sheet["C34"] = qual.get("year", "")
+    sheet["C35"] = qual.get("course", "")
+    sheet["C36"] = qual.get("specialization", "")
+
+
+# ------------------------------------------------------------
+# UI DISPLAY HELPERS
+# ------------------------------------------------------------
 def _info_grid(items, columns=3):
-    """Display label/value pairs in a compact, consistent grid."""
     cols = st.columns(columns)
-    for index, (label, value) in enumerate(items):
-        with cols[index % columns]:
+    for idx, (label, val) in enumerate(items):
+        with cols[idx % columns]:
+            shown = val if val not in (None, "", [], {}) else "—"
             st.markdown(
                 f"""
-                <div style="
-                    border:1px solid #e5e7eb;
-                    border-radius:10px;
-                    padding:10px 12px;
-                    margin-bottom:10px;
-                    background:#ffffff;
-                    min-height:72px;
-                ">
-                    <div style="
-                        font-size:11px;
-                        text-transform:uppercase;
-                        letter-spacing:.04em;
-                        color:#6b7280;
-                        font-weight:700;
-                        margin-bottom:4px;
-                    ">{label}</div>
-                    <div style="
-                        font-size:14px;
-                        line-height:1.35;
-                        color:#111827;
-                        font-weight:600;
-                        word-break:break-word;
-                    ">{_clean_display(value)}</div>
+                <div style="border:1px solid #243048;border-radius:12px;padding:12px 14px;margin-bottom:12px;background:#151c2c;box-shadow:0 4px 16px rgba(0,0,0,0.25);min-height:74px;">
+                    <div style="font-size:11px;text-transform:uppercase;letter-spacing:.06em;color:#818cf8;font-weight:750;margin-bottom:4px;">{label}</div>
+                    <div style="font-size:14px;line-height:1.35;color:#f8fafc;font-weight:650;word-break:break-word;">{shown}</div>
                 </div>
                 """,
                 unsafe_allow_html=True,
             )
 
 
-def _status_badge(label, ok=True):
-    bg = "#ecfdf5" if ok else "#fff7ed"
-    border = "#a7f3d0" if ok else "#fed7aa"
-    color = "#047857" if ok else "#c2410c"
+def _metric_card(label, val):
+    shown = val if val not in (None, "", [], {}) else "—"
     st.markdown(
         f"""
-        <div style="
-            display:inline-block;
-            padding:6px 10px;
-            border-radius:999px;
-            border:1px solid {border};
-            background:{bg};
-            color:{color};
-            font-size:12px;
-            font-weight:700;
-            margin:2px 0 8px 0;
-        ">{label}</div>
-        """,
-        unsafe_allow_html=True,
-    )
-
-
-
-
-def _metric_card(label, value):
-    """Compact metric card that always shows the full value without Streamlit ellipsis."""
-    shown = _clean_display(value)
-    st.markdown(
-        f"""
-        <div style="
-            border:1px solid #2f3440;
-            border-radius:10px;
-            padding:10px 12px;
-            background:transparent;
-            min-height:72px;
-        ">
-            <div style="
-                font-size:12px;
-                color:#cbd5e1;
-                font-weight:600;
-                margin-bottom:5px;
-            ">{label}</div>
-            <div style="
-                font-size:18px;
-                line-height:1.25;
-                color:#ffffff;
-                font-weight:600;
-                white-space:normal;
-                overflow:visible;
-                word-break:normal;
-            ">{shown}</div>
+        <div style="border:1px solid #243048;border-radius:14px;padding:13px 16px;background:linear-gradient(180deg,#151c2c,#101624);box-shadow:0 6px 20px rgba(0,0,0,0.3);min-height:76px;">
+            <div style="font-size:12px;color:#94a3b8;font-weight:700;margin-bottom:4px;">{label}</div>
+            <div style="font-size:21px;line-height:1.2;color:#ffffff;font-weight:800;">{shown}</div>
         </div>
         """,
         unsafe_allow_html=True,
     )
 
 
+def _safe_index(options, value):
+    try:
+        return options.index(value)
+    except ValueError:
+        return 0
 
 
-def _cv_source_note(label, value):
-    shown = _clean_display(value)
-    st.markdown(
-        f'<div class="review-source-note"><strong>{label}:</strong> {shown}</div>',
-        unsafe_allow_html=True,
-    )
+def _sg_date(val):
+    if not val: return ""
+    v = str(val).strip()
+    if v.lower() in {"present", "current", "ongoing", "till date", "now"}:
+        return datetime.today().strftime("%d/%m/%Y")
+    for fmt in ("%Y-%m-%d %H:%M:%S", "%Y-%m-%d", "%Y-%m"):
+        try: return datetime.strptime(v, fmt).strftime("%d/%m/%Y")
+        except ValueError: continue
+    return v
 
 
-# ---------- Streamlit UI ----------
-
-st.set_page_config(page_title="CV Analyzer", page_icon="📄", layout="centered")
-st.markdown("""<style>
-.main-title { text-align: center; font-size: 38px; font-weight: 700; margin-bottom: 5px; }
-.subtitle { text-align: center; color: #666; margin-bottom: 25px; }
-
-
-
-/* Review-page status polish */
-.review-source-note {
-    color: #8b93a1;
-    font-size: 0.82rem;
-    line-height: 1.35;
-    margin: 2px 0 7px 0;
-}
-
-/* Multiselect selections are choices, not errors */
-[data-baseweb="tag"] {
-    background-color: #374151 !important;
-    color: #f8fafc !important;
-}
-[data-baseweb="tag"] span,
-[data-baseweb="tag"] svg {
-    color: #f8fafc !important;
-}
-
-/* Avoid using red as the default focus state for valid review controls */
-div[data-baseweb="select"] > div:focus-within {
-    border-color: #64748b !important;
-    box-shadow: 0 0 0 1px #64748b !important;
-}
+def _field_hint(cv_value, is_matched, unconfirmed_msg="Select closest master match"):
+    """Displays a clean helper note under dropdowns showing raw CV wording."""
+    if not cv_value:
+        st.caption("ℹ️ *Not mentioned in CV*")
+    elif not is_matched:
+        st.markdown(
+            f'<div style="font-size:12px;color:#fef08a;background:rgba(180,83,9,0.22);padding:6px 11px;border-radius:7px;margin:-4px 0 12px 0;border:1px solid #b45309;">'
+            f'⚠️ <strong>CV states:</strong> "{cv_value}" — <em>{unconfirmed_msg}</em>'
+            f'</div>',
+            unsafe_allow_html=True,
+        )
+    else:
+        st.markdown(
+            f'<div style="font-size:11px;color:#4ade80;margin:-4px 0 12px 2px;">'
+            f'✓ Confirmed from CV: <em>"{cv_value}"</em>'
+            f'</div>',
+            unsafe_allow_html=True,
+        )
 
 
-/* Faster HR review: tighter vertical rhythm */
-[data-testid="stExpander"] {
-    margin-top: 0.35rem !important;
-    margin-bottom: 0.65rem !important;
-}
+SG_ADD_CANDIDATE_URL = "https://skillgroomers.projects-digitalgem.com/main/candidate/new"
 
-</style>""", unsafe_allow_html=True)
 
-st.markdown('<div class="main-title">📄 CV Analyzer V8.5</div>', unsafe_allow_html=True)
-st.markdown('<div class="subtitle">Upload CVs, verify the extracted facts, review Skill Groomers mapping, then download the HR report.</div>', unsafe_allow_html=True)
+def build_transfer_url(data, mapping, sel_core, sel_func, sel_ind, sel_kw, sel_city, sel_state, sel_native_city, sel_native_state, sel_edu):
+    jobs = sort_jobs(data.get("work_experience", []))
+    cur, prev = get_current_and_previous_jobs(jobs)
+    tot_m = total_experience_months(jobs)
+    y, m = split_months(tot_m)
+    avg_y, avg_m = split_months(average_tenure_months(tot_m, compute_job_changes(jobs)))
+
+    transfer = {
+        "version": 1,
+        "candidate": {
+            "coreRole": sel_core if sel_core != "— Not selected —" else "",
+            "fullName": str(data.get("candidate_name", "") or ""),
+            "emailId": str(data.get("email", "") or ""),
+            "mobileNumber": str(data.get("phone", "") or ""),
+            "alternateNumber": str(data.get("alternate_phone", "") or ""),
+            "dateOfBirth": _sg_date(data.get("date_of_birth")),
+            "gender": str(data.get("gender", "") or ""),
+            "currentCity": "" if sel_city == "— Not selected —" else sel_city,
+            "currentState": "" if sel_state == "— Not selected —" else sel_state,
+            "nativeCity": "" if sel_native_city == "— Not selected —" else sel_native_city,
+            "nativeState": "" if sel_native_state == "— Not selected —" else sel_native_state,
+            "keySkills": list(sel_kw or [])[:4],
+            "functionalArea": sel_func.get("functional_area", "") if sel_func else "",
+            "role": sel_func.get("role", "") if sel_func else "",
+            "industry": "" if sel_ind == "— Not selected —" else sel_ind,
+            "currentDesignation": cur.get("designation", "") if cur else "",
+            "currentEmployer": cur.get("company", "") if cur else "",
+            "startDate": _sg_date(cur.get("start_date")) if cur else "",
+            "endDate": _sg_date(cur.get("end_date")) if cur else "",
+            "previousDesignation": prev.get("designation", "") if prev else "",
+            "previousEmployer": prev.get("company", "") if prev else "",
+            "totalExperienceInYears": None if has_year_only_employment_dates(jobs) else y,
+            "totalExperienceInMonths": None if has_year_only_employment_dates(jobs) else m,
+            "totalExperienceAsOfDate": datetime.today().strftime("%d/%m/%Y"),
+            "totalNumberOfJobs": str(number_of_employers(jobs)),
+            "annualSalaryLakh": parse_salary_lakhs(data.get("annual_salary")),
+            "averageTenureInYears": None if has_year_only_employment_dates(jobs) else avg_y,
+            "averageTenureInMonths": None if has_year_only_employment_dates(jobs) else avg_m,
+            "qualification": sel_edu.get("qualification", "") if sel_edu else "",
+            "course": sel_edu.get("course", "") if sel_edu else "",
+            "specialization": sel_edu.get("specialization", "") if sel_edu else "",
+            "completionYear": str(data.get("highest_qualification", {}).get("year", "") or ""),
+        }
+    }
+    raw = json.dumps(transfer, separators=(",", ":")).encode("utf-8")
+    token = base64.urlsafe_b64encode(raw).decode("ascii").rstrip("=")
+    return f"{SG_ADD_CANDIDATE_URL}#cvfill={urllib.parse.quote(token)}"
+
+
+def _render_review_card(filename, file_info):
+    data = file_info["factual_data"]
+    mapping = file_info["mapping"]
+    candidate = file_info["candidate_name"]
+
+    jobs = sort_jobs(data.get("work_experience", []))
+    cur, prev = get_current_and_previous_jobs(jobs)
+    tot_m = total_experience_months(jobs)
+    factual_edu = data.get("highest_qualification", {}) or {}
+
+    st.markdown(f'<div class="candidate-chip">QUICK REVIEW</div>', unsafe_allow_html=True)
+    st.markdown(f'<h2 style="margin:0 0 6px 0;color:#ffffff;">{candidate}</h2>', unsafe_allow_html=True)
+
+    st.markdown("### 1. Candidate Facts")
+    m1, m2, m3, m4 = st.columns(4)
+    with m1: _metric_card("Experience", experience_display(jobs))
+    with m2: _metric_card("Avg. Tenure", format_months(average_tenure_months(tot_m, compute_job_changes(jobs))))
+    with m3: _metric_card("Employers", number_of_employers(jobs))
+    with m4: _metric_card("Job Changes", compute_job_changes(jobs))
+
+    _info_grid([
+        ("Candidate", data.get("candidate_name", "")),
+        ("Email", data.get("email", "")),
+        ("Mobile", data.get("phone", "")),
+        ("Current Job", f"{cur.get('designation','')} — {cur.get('company','')}" if cur else "—"),
+        ("Previous Job", f"{prev.get('designation','')} — {prev.get('company','')}" if prev else "—"),
+        ("Education", f"{factual_edu.get('qualification_text','') or factual_edu.get('degree','')} ({factual_edu.get('year','')})"),
+    ], columns=3)
+
+    st.markdown("### 2. Skill Groomers Classification")
+    sg_core = mapping.get("core_role", {}) or {}
+    sg_func = mapping.get("functional_area", {}) or {}
+    sg_ind = mapping.get("industry", {}) or {}
+    sg_edu = mapping.get("education", {}) or {}
+
+    f_path = " → ".join(x for x in [sg_func.get("functional_area"), sg_func.get("sub_functional_area"), sg_func.get("role")] if x) if sg_func.get("matched") else "— Not Confirmed (Left Blank) —"
+    e_path = " → ".join(x for x in [sg_edu.get("qualification"), sg_edu.get("course"), sg_edu.get("specialization")] if x) if sg_edu.get("matched") else "— Not Confirmed (Left Blank) —"
+
+    _info_grid([
+        ("Core Role", sg_core.get("name", "") if sg_core.get("matched") else "— Not Confirmed —"),
+        ("Industry", sg_ind.get("name", "") if sg_ind.get("matched") else "— Not Confirmed —"),
+        ("Functional Area", f_path),
+        ("Key Skills (Top 4)", ", ".join((mapping.get("key_skills", []) or [])[:4])),
+        ("Education", e_path),
+    ], columns=2)
+
+    with st.expander("✏️ Edit Classifications (Manual Override)"):
+        # 1. Core Role
+        c_opts = ["— Not selected —"] + sorted({str(r).strip() for r in CORE_ROLE_MASTER if str(r).strip()}, key=str.lower)
+        curr_core_val = sg_core.get("name", "") if sg_core.get("matched") else ""
+        sel_core = st.selectbox("Core Role", c_opts, index=_safe_index(c_opts, curr_core_val), key=f"c_{filename}")
+        _field_hint(data.get("core_role") or data.get("role"), sg_core.get("matched"))
+
+        # 2. Functional Area
+        fa_list = [f"{r['functional_area']} → {r['sub_functional_area']} → {r['role']}" for r in FUNCTIONAL_AREA_MASTER]
+        fa_opts = ["— Not selected —"] + sorted(fa_list, key=str.lower)
+        curr_fa = f"{sg_func.get('functional_area')} → {sg_func.get('sub_functional_area')} → {sg_func.get('role')}" if sg_func.get("matched") else ""
+        sel_fa_lbl = st.selectbox("Functional Area", fa_opts, index=_safe_index(fa_opts, curr_fa), key=f"fa_{filename}")
+        sel_func_rec = next((r for r in FUNCTIONAL_AREA_MASTER if f"{r['functional_area']} → {r['sub_functional_area']} → {r['role']}" == sel_fa_lbl), None)
+        fa_cv_text = f"{data.get('functional_area', '')} (Role: {data.get('role', '')})".strip()
+        _field_hint(fa_cv_text, sg_func.get("matched"))
+
+        # 3. Industry
+        ind_opts = ["— Not selected —"] + sorted({str(i['name']).strip() for i in INDUSTRY_MASTER if i.get('active', 1) == 1}, key=str.lower)
+        curr_ind_val = sg_ind.get("name", "") if sg_ind.get("matched") else ""
+        sel_ind = st.selectbox("Industry", ind_opts, index=_safe_index(ind_opts, curr_ind_val), key=f"ind_{filename}")
+        _field_hint(data.get("industry"), sg_ind.get("matched"))
+
+        # 4. Key Skills
+        kw_opts = sorted({str(k).strip() for k in KEYWORD_MASTER if str(k).strip()}, key=str.lower)
+        sel_kw = st.multiselect("Key Skills (max 4)", kw_opts, default=mapping.get("key_skills", [])[:4], max_selections=4, key=f"kw_{filename}")
+
+        # Show all raw skills extracted directly from the CV PDF
+        raw_cv_skills = clean_key_skills(data.get("key_skills", []) or [])
+        if raw_cv_skills:
+            st.markdown(
+                f"""
+                <div style="font-size:12px;color:#e2e8f0;background:#101624;padding:9px 13px;border-radius:9px;margin:5px 0 14px 0;border:1px solid #243048;line-height:1.65;">
+                    <div style="color:#818cf8;font-weight:750;font-size:11px;text-transform:uppercase;letter-spacing:0.06em;margin-bottom:3px;">
+                        📄 All Key Skills Extracted From CV ({len(raw_cv_skills)}):
+                    </div>
+                    {" &nbsp;•&nbsp; ".join(f"<strong style='color:#f8fafc;'>{s}</strong>" for s in raw_cv_skills)}
+                </div>
+                """,
+                unsafe_allow_html=True,
+            )
+        else:
+            st.caption("ℹ️ *No key skills extracted from CV*")
+
+        # 5. Locations
+        city_opts = ["— Not selected —"] + sorted({str(l['name']).strip() for l in LOCATION_MASTER if l.get('category') == 'Top Metropolitan Cities'}, key=str.lower)
+        state_opts = ["— Not selected —"] + sorted({str(l['name']).strip() for l in LOCATION_MASTER if l.get('category') == 'States'}, key=str.lower)
+        
+        c1, c2 = st.columns(2)
+        curr_city = mapping["current_city"].get("name", "") if mapping["current_city"].get("matched") else ""
+        curr_state = mapping["current_state"].get("name", "") if mapping["current_state"].get("matched") else ""
+        with c1: 
+            sel_city = st.selectbox("Current City", city_opts, index=_safe_index(city_opts, curr_city), key=f"city_{filename}")
+            _field_hint(data.get("current_city"), mapping["current_city"].get("matched"))
+        with c2: 
+            sel_state = st.selectbox("Current State", state_opts, index=_safe_index(state_opts, curr_state), key=f"state_{filename}")
+            _field_hint(data.get("current_state"), mapping["current_state"].get("matched"))
+
+        n1, n2 = st.columns(2)
+        curr_native_city = mapping["native_city"].get("name", "") if mapping["native_city"].get("matched") else ""
+        curr_native_state = mapping["native_state"].get("name", "") if mapping["native_state"].get("matched") else ""
+        with n1: 
+            sel_native_city = st.selectbox("Native City", city_opts, index=_safe_index(city_opts, curr_native_city), key=f"nc_{filename}")
+            _field_hint(data.get("native_city"), mapping["native_city"].get("matched"))
+        with n2: 
+            sel_native_state = st.selectbox("Native State", state_opts, index=_safe_index(state_opts, curr_native_state), key=f"ns_{filename}")
+            _field_hint(data.get("native_state"), mapping["native_state"].get("matched"))
+
+        # 6. Education
+        edu_list = [f"{e['qualification']} → {e['course']} → {e['specialization']}" for e in EDUCATION_MASTER]
+        edu_opts = ["— Not selected —"] + sorted(edu_list, key=str.lower)
+        curr_edu = f"{sg_edu.get('qualification')} → {sg_edu.get('course')} → {sg_edu.get('specialization')}" if sg_edu.get("matched") else ""
+        sel_edu_lbl = st.selectbox("Education", edu_opts, index=_safe_index(edu_opts, curr_edu), key=f"edu_{filename}")
+        sel_edu_rec = next((e for e in EDUCATION_MASTER if f"{e['qualification']} → {e['course']} → {e['specialization']}" == sel_edu_lbl), None)
+        
+        raw_edu = factual_edu.get("qualification_text") or f"{factual_edu.get('degree', '')} {factual_edu.get('specialization', '')}".strip()
+        _field_hint(raw_edu, sg_edu.get("matched"), unconfirmed_msg="Branch missing or not in database, choose equivalent")
+
+    approve_key = f"approved_{filename}"
+    if approve_key not in st.session_state:
+        st.session_state[approve_key] = False
+
+    st.markdown("### 3. Approval & Export")
+    if st.button("✅ Approve Candidate", key=f"app_{filename}", use_container_width=True):
+        st.session_state[approve_key] = True
+        st.success("Candidate verified and approved for Skill Groomers.")
+
+    transfer_url = build_transfer_url(data, mapping, sel_core, sel_func_rec, sel_ind, sel_kw, sel_city, sel_state, sel_native_city, sel_native_state, sel_edu_rec)
+
+    if st.session_state[approve_key]:
+        st.markdown(
+            f"""
+            <a href="{transfer_url}" target="_blank"
+               style="display:block;width:100%;text-align:center;padding:0.78rem 1.2rem;border-radius:12px;background:linear-gradient(135deg,#4f46e5,#7c3aed);color:#ffffff;font-weight:750;text-decoration:none;margin-top:10px;box-shadow:0 8px 24px rgba(79,70,229,.35);">
+               ⚡ Open Skill Groomers & Fill Candidate →
+            </a>
+            """,
+            unsafe_allow_html=True,
+        )
+    else:
+        st.button("⚡ Open Skill Groomers & Fill Candidate →", key=f"disabled_sg_{filename}", disabled=True, use_container_width=True, help="Click Approve Candidate above first.")
+
+
+# ------------------------------------------------------------
+# MAIN STREAMLIT APP SHELL
+# ------------------------------------------------------------
 st.markdown(
     """
     <div class="app-hero">
         <div class="eyebrow">Skill Groomers • Recruitment Intelligence</div>
-        <h1>CV Analyzer V8.5</h1>
-        <p>Convert resumes into verified HR-ready candidate profiles with deterministic experience calculations and review-safe Skill Groomers mapping.</p>
-        <div class="hero-meta">
-            <span class="hero-pill">CV Fact Extraction</span>
-            <span class="hero-pill">Experience Validation</span>
-            <span class="hero-pill">Skill Groomers Mapping</span>
-            <span class="hero-pill">HR Review Workflow</span>
-        </div>
+        <h1>CV Analyzer</h1>
+        <p>Extract verified candidate facts, calculate deterministic experience metrics, and autofill directly into the recruitment platform.</p>
+    </div>
+    <div class="workflow">
+        <div class="workflow-step"><span>Step 1</span>Upload CV</div>
+        <div class="workflow-step"><span>Step 2</span>Analyse</div>
+        <div class="workflow-step"><span>Step 3</span>Review Facts</div>
+        <div class="workflow-step"><span>Step 4</span>Approve</div>
+        <div class="workflow-step"><span>Step 5</span>Autofill Platform</div>
     </div>
     """,
     unsafe_allow_html=True,
 )
 
-st.markdown(
-    """
-    <div class="premium-card" style="margin-bottom:14px">
-        <div class="section-kicker">Workflow</div>
-        <div style="display:flex;gap:18px;flex-wrap:wrap;font-weight:700;color:#334155">
-            <span>1&nbsp; Upload CV</span>
-            <span>→</span>
-            <span>2&nbsp; Analyze</span>
-            <span>→</span>
-            <span>3&nbsp; Review</span>
-            <span>→</span>
-            <span>4&nbsp; Approve</span>
-            <span>→</span>
-            <span>5&nbsp; Export / Submit</span>
-        </div>
-    </div>
-    """,
-    unsafe_allow_html=True,
-)
-st.info("Upload one or more PDF CVs. Factual CV data stays separate from Skill Groomers mapping so HR can review classifications without changing source facts.")
+uploaded_files = st.file_uploader("Upload candidate resumes (PDF)", type=["pdf"], accept_multiple_files=True, label_visibility="collapsed", key="pdf_uploader")
 
-st.sidebar.markdown("### Developer Tools")
-developer_debug = st.sidebar.checkbox(
-    "Show Developer Debug",
-    value=False,
-    help="Shows raw extraction, normalized data, full mapping details and API payload information.",
-)
-
-uploaded_files = st.file_uploader("Upload CV(s)", type=["pdf"], accept_multiple_files=True, help="Only PDF files are accepted.")
 if "generated_files" not in st.session_state:
     st.session_state.generated_files = {}
-if uploaded_files:
-    st.success(f"Selected {len(uploaded_files)} file(s).")
 
-if st.button("🔍 Analyse CVs", use_container_width=True):
+if st.button("Analyse Resumes", type="primary", use_container_width=True, key="analyse_resumes_btn"):
     if not uploaded_files:
-        st.warning("Please upload at least one PDF CV first.")
+        st.warning("Please upload at least one PDF resume.")
     else:
         st.session_state.generated_files = {}
         for uploaded_file in uploaded_files:
-            st.write(f"--- Processing: **{uploaded_file.name}** ---")
-
             try:
-                with st.spinner(f"Analysing {uploaded_file.name}..."):
+                with st.spinner(f"Analyzing {uploaded_file.name}..."):
                     pdf_bytes = uploaded_file.getvalue()
                     raw_text = extract_text_from_pdf(uploaded_file)
-                    raw_gemini_data = extract_resume_data(raw_text, pdf_bytes=pdf_bytes)
+                    raw_gemini = extract_resume_data(raw_text, pdf_bytes=pdf_bytes)
 
-                    # V8: normalize only factual presentation/field semantics first.
-                    # This remains CV-derived data and is separate from SG classification.
-                    data = normalize_factual_education(raw_gemini_data)
-
-                    # Safety guard: a CV that visibly contains professional-experience
-                    # language but yields no jobs should never silently show 0 years.
-                    experience_words = normalize_master_text(raw_text)
-                    extraction_warning = (
-                        any(term in experience_words for term in [
-                            "professional experience", "work experience", "employment",
-                            "career experience", "experience"
-                        ])
-                        and not (data.get("work_experience") or [])
-                    )
-                    data["_employment_extraction_warning"] = extraction_warning
-
-                    # Map factual CV extraction against the complete Skill Groomers master-data snapshot.
+                    raw_gemini = reconcile_qualification_text(raw_gemini)
+                    data = normalize_factual_education(raw_gemini)
                     mapping = build_skill_groomers_mapping(data, source_text=raw_text)
                     excel_data = apply_mapping_to_excel_data(data, mapping)
 
-                    if developer_debug:
-                        # ----------------------------------------------------------
-                        # TWO-LEVEL DEBUG / REVIEW VIEW
-                        # Level 1 = HR-readable operational diagnostics.
-                        # Level 2 = complete developer diagnostics.
-                        # ----------------------------------------------------------
-                        debug_jobs = sort_jobs(data.get("work_experience", []))
-                        debug_total_months = total_experience_months(debug_jobs)
-                        debug_job_changes = compute_job_changes(debug_jobs)
-                        debug_avg_months = average_tenure_months(
-                            debug_total_months, debug_job_changes
-                        )
-                        debug_current, debug_previous = get_current_and_previous_jobs(debug_jobs)
-                        factual_education = data.get("highest_qualification", {}) or {}
+                    template_path = os.path.join(BASE_DIR, "resume1.xlsx")
+                    if os.path.exists(template_path):
+                        wb = openpyxl.load_workbook(template_path)
+                        populate_excel(excel_data, wb.active)
+                        buf = io.BytesIO()
+                        wb.save(buf)
+                        excel_bytes = buf.getvalue()
+                    else:
+                        excel_bytes = b""
 
-                        sg_core = mapping.get("core_role", {}) or {}
-                        sg_functional = mapping.get("functional_area", {}) or {}
-                        sg_industry = mapping.get("industry", {}) or {}
-                        sg_education = mapping.get("education", {}) or {}
-                        sg_city = mapping.get("current_city", {}) or {}
-                        sg_state = mapping.get("current_state", {}) or {}
-
-                        # -------------------------
-                        # LEVEL 1 — HR
-                        # -------------------------
-                        # Developer-only technical diagnostics
-                        if developer_debug:
-                            factual_debug = {
-                                "candidate_name": data.get("candidate_name", ""),
-                                "email": data.get("email", ""),
-                                "phone": data.get("phone", ""),
-                                "date_of_birth": data.get("date_of_birth", ""),
-                                "gender": data.get("gender", ""),
-                                "current_city": data.get("current_city", ""),
-                                "current_state": data.get("current_state", ""),
-                                "native_city": data.get("native_city", ""),
-                                "native_state": data.get("native_state", ""),
-                                "core_role": data.get("core_role", ""),
-                                "key_skills": data.get("key_skills", []),
-                                "functional_area": data.get("functional_area", ""),
-                                "role": data.get("role", ""),
-                                "industry": data.get("industry", ""),
-                                "current_employment": debug_current,
-                                "previous_distinct_employment": debug_previous,
-                                "calculated_total_experience": format_months(debug_total_months),
-                                "number_of_employers": number_of_employers(debug_jobs),
-                                "job_changes": debug_job_changes,
-                                "calculated_average_tenure": format_months(debug_avg_months),
-                                "highest_completed_qualification": factual_education,
-                            }
-
-                            skill_groomers_debug = {
-                                "core_role": sg_core.get("name", ""),
-                                "core_role_confidence": sg_core.get("score"),
-                                "functional_area": sg_functional.get("functional_area", ""),
-                                "sub_functional_area": sg_functional.get("sub_functional_area", ""),
-                                "role": sg_functional.get("role", ""),
-                                "functional_area_id": sg_functional.get("functionalAreaId"),
-                                "industry": sg_industry.get("name", ""),
-                                "industry_id": sg_industry.get("industryId"),
-                                "key_skills": mapping.get("key_skills", []),
-                                "education_qualification": sg_education.get("qualification", ""),
-                                "education_course": sg_education.get("course", ""),
-                                "education_specialization": sg_education.get("specialization", ""),
-                                "education_id": sg_education.get("educationId"),
-                                "current_city": sg_city.get("name", ""),
-                                "current_city_id": sg_city.get("id"),
-                                "current_state": sg_state.get("name", ""),
-                                "current_state_id": sg_state.get("id"),
-                                "native_city": mapping.get("native_city", {}).get("name", ""),
-                                "native_city_id": mapping.get("native_city", {}).get("id"),
-                                "native_state": mapping.get("native_state", {}).get("name", ""),
-                                "native_state_id": mapping.get("native_state", {}).get("id"),
-                                "review_required": mapping.get("review_required", False),
-                                "review_reasons": mapping.get("review_reasons", []),
-                            }
-
-                            st.subheader(f"🛠️ Developer Debug — {uploaded_file.name}")
-                            st.caption(
-                                "Technical pipeline view for extraction, normalization, mapping and payload troubleshooting."
-                            )
-
-                            dev_tab1, dev_tab2, dev_tab3, dev_tab4 = st.tabs(
-                                [
-                                    "Pipeline Summary",
-                                    "Extraction",
-                                    "Mapping",
-                                    "API Payload",
-                                ]
-                            )
-
-                            with dev_tab1:
-                                d1, d2, d3, d4 = st.columns(4)
-                                d1.metric("Experience", format_months(debug_total_months))
-                                d2.metric("Avg. Tenure", format_months(debug_avg_months))
-                                d3.metric("Employers", number_of_employers(debug_jobs))
-                                d4.metric("Job Changes", debug_job_changes)
-
-                                _info_grid(
-                                    [
-                                        ("Candidate", data.get("candidate_name", "")),
-                                        ("Core Role", sg_core.get("name", "")),
-                                        ("Functional Area ID", sg_functional.get("functionalAreaId")),
-                                        ("Industry ID", sg_industry.get("industryId")),
-                                        ("Education ID", sg_education.get("educationId")),
-                                        ("Review Required", mapping.get("review_required", False)),
-                                    ],
-                                    columns=3,
-                                )
-
-                                if mapping.get("review_required"):
-                                    st.warning("One or more mapping fields require review.")
-                                    for item in mapping.get("review_reasons", []):
-                                        st.write(
-                                            f"• **{item.get('section', 'Mapping')}** — "
-                                            f"{item.get('reason', 'Review required')}"
-                                        )
-                                else:
-                                    st.success("No mapper review flags.")
-
-                            with dev_tab2:
-                                with st.expander("CV / Excel Facts", expanded=True):
-                                    st.json(factual_debug)
-                                with st.expander("Raw Gemini JSON"):
-                                    st.json(raw_gemini_data)
-                                with st.expander("Normalized Factual Data"):
-                                    st.json(data)
-
-                            with dev_tab3:
-                                with st.expander("Skill Groomers Mapping Summary", expanded=True):
-                                    st.json(skill_groomers_debug)
-                                with st.expander("Full Skill Groomers Mapping Details"):
-                                    st.json(mapping)
-
-                                if sg_functional.get("matched"):
-                                    st.caption(
-                                        "Functional hierarchy: "
-                                        f"{sg_functional.get('functional_area', '')} → "
-                                        f"{sg_functional.get('sub_functional_area', '')} → "
-                                        f"{sg_functional.get('role', '')} "
-                                        f"(ID {sg_functional.get('functionalAreaId')})"
-                                    )
-
-                            with dev_tab4:
-                                skill_groomers_payload = build_skill_groomers_payload_preview(
-                                    excel_data, mapping
-                                )
-                                st.caption(
-                                    "Payload preview only. The resume URL is inserted later during real submission."
-                                )
-                                st.json(skill_groomers_payload)
-
-                    # Load template and populate sheet
-                    workbook = openpyxl.load_workbook("resume1.xlsx")
-                    sheet = workbook.active
-                    populate_excel(excel_data, sheet)
-
-                    # Save to memory buffer
-                    excel_buffer = io.BytesIO()
-                    workbook.save(excel_buffer)
-                    excel_buffer.seek(0)
-
-
-                st.success(f"✅ Finished analyzing {uploaded_file.name}!")
-                skill_groomers_payload = build_skill_groomers_payload_preview(excel_data, mapping)
-                st.session_state.generated_files[uploaded_file.name] = {
-                    "data": excel_buffer.getvalue(),
-                    "candidate_name": data.get("candidate_name", uploaded_file.name),
-                    "mapping": mapping,
-                    "factual_data": data,
-                    "payload_preview": skill_groomers_payload,
-                }
-
-
-            except Exception as error:
-                st.error(f"❌ Something went wrong with {uploaded_file.name}.")
-                with st.expander("View technical error"):
-                    st.exception(error)
+                    st.session_state.generated_files[uploaded_file.name] = {
+                        "data": excel_bytes,
+                        "candidate_name": data.get("candidate_name", uploaded_file.name),
+                        "mapping": mapping,
+                        "factual_data": data,
+                    }
+                st.success(f"✓ Ready: {uploaded_file.name}")
+            except Exception as e:
+                st.error(f"Error processing {uploaded_file.name}: {e}")
 
 if st.session_state.generated_files:
-
     st.divider()
-    st.markdown("## Candidate Review")
-    st.caption("Verify CV facts first, then review Skill Groomers classifications. Experience calculations remain locked to the agreed rules.")
-
     for filename, file_info in st.session_state.generated_files.items():
-        with st.container(border=True):
+        with st.container():
             _render_review_card(filename, file_info)
+            if file_info["data"]:
+                st.download_button(
+                    label=f"⬇️ Download Excel Report ({file_info['candidate_name']})",
+                    data=file_info["data"],
+                    file_name=f"{file_info['candidate_name']}_Report.xlsx",
+                    mime="application/vnd.openxmlformats-officedocument.spreadsheetml.sheet",
+                    key=f"dl_{filename}",
+                    use_container_width=True,
+                )
 
-            st.download_button(
-                label=f"⬇️ Download Excel Report for {file_info['candidate_name']}",
-                data=file_info["data"],
-                file_name=f"{file_info['candidate_name']}_Report.xlsx",
-                mime="application/vnd.openxmlformats-officedocument.spreadsheetml.sheet",
-                key=f"download_{filename}",
-                use_container_width=True,
-            )
+st.markdown(
+    """
+    <div class="app-footer">
+        CV Analyzer &nbsp;•&nbsp; Developed by <strong>Jai Pandya</strong>
+    </div>
+    """,
+    unsafe_allow_html=True,
+)
