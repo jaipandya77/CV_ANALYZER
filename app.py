@@ -816,19 +816,6 @@ def map_education(data):
     comb = normalize_master_text(f"{degree} {course} {qtext}")
     spec_n = normalize_master_text(spec)
 
-    generic_words = {"polytechnic", "diploma", "engineering", "degree", "general", "polytechnique", "technical", "studies", "institute"}
-    if not spec_n or spec_n in generic_words:
-        return {
-            "educationId": None,
-            "qualification": "",
-            "course": "",
-            "specialization": "",
-            "completionYear": str(year or ""),
-            "matched": False,
-            "review_required": True,
-            "reason": "Specialization branch not confirmed in CV"
-        }
-
     pref_course = _match_course_family(comb)
     if not pref_course:
         return {
@@ -838,6 +825,7 @@ def map_education(data):
             "specialization": "",
             "completionYear": str(year or ""),
             "matched": False,
+            "course_matched": False,
             "review_required": True,
             "reason": "Course family not confirmed"
         }
@@ -851,8 +839,26 @@ def map_education(data):
             "specialization": "",
             "completionYear": str(year or ""),
             "matched": False,
+            "course_matched": False,
             "review_required": True,
             "reason": "Course not found in master data"
+        }
+
+    # Verified parent qualification associated with this course family
+    cand_qualification = cands[0]["qualification"].strip()
+
+    generic_words = {"polytechnic", "diploma", "engineering", "degree", "general", "polytechnique", "technical", "studies", "institute"}
+    if not spec_n or spec_n in generic_words:
+        return {
+            "educationId": None,
+            "qualification": cand_qualification,
+            "course": pref_course,
+            "specialization": "",
+            "completionYear": str(year or ""),
+            "matched": False,
+            "course_matched": True,
+            "review_required": True,
+            "reason": f"Course '{pref_course}' confirmed, but specialization branch is missing in CV"
         }
 
     cleaned_spec = re.sub(r"\s+engineering$", "", spec_n).strip()
@@ -869,18 +875,20 @@ def map_education(data):
             "specialization": exact["specialization"].strip(),
             "completionYear": str(year or ""),
             "matched": True,
+            "course_matched": True,
             "review_required": False
         }
 
     return {
         "educationId": None,
-        "qualification": "",
-        "course": "",
+        "qualification": cand_qualification,
+        "course": pref_course,
         "specialization": "",
         "completionYear": str(year or ""),
         "matched": False,
+        "course_matched": True,
         "review_required": True,
-        "reason": f"Specialization '{spec}' not confirmed in Skill Groomers options"
+        "reason": f"Course '{pref_course}' confirmed, but specialization '{spec}' not found in master data"
     }
 
 
@@ -1034,6 +1042,21 @@ def build_transfer_url(data, mapping, sel_core, sel_func, sel_ind, sel_kw, sel_c
     y, m = split_months(tot_m)
     avg_y, avg_m = split_months(average_tenure_months(tot_m, compute_job_changes(jobs)))
 
+    # Graceful partial education fallback: if recruiter didn't select an override, fill confirmed parts
+    sg_edu = mapping.get("education", {}) or {}
+    if sel_edu:
+        edu_qual = sel_edu.get("qualification", "")
+        edu_course = sel_edu.get("course", "")
+        edu_spec = sel_edu.get("specialization", "")
+    elif sg_edu.get("course_matched"):
+        edu_qual = sg_edu.get("qualification", "")
+        edu_course = sg_edu.get("course", "")
+        edu_spec = sg_edu.get("specialization", "")  # Leaves branch blank if unconfirmed in CV
+    else:
+        edu_qual = ""
+        edu_course = ""
+        edu_spec = ""
+
     transfer = {
         "version": 1,
         "candidate": {
@@ -1065,9 +1088,9 @@ def build_transfer_url(data, mapping, sel_core, sel_func, sel_ind, sel_kw, sel_c
             "annualSalaryLakh": parse_salary_lakhs(data.get("annual_salary")),
             "averageTenureInYears": None if has_year_only_employment_dates(jobs) else avg_y,
             "averageTenureInMonths": None if has_year_only_employment_dates(jobs) else avg_m,
-            "qualification": sel_edu.get("qualification", "") if sel_edu else "",
-            "course": sel_edu.get("course", "") if sel_edu else "",
-            "specialization": sel_edu.get("specialization", "") if sel_edu else "",
+            "qualification": edu_qual,
+            "course": edu_course,
+            "specialization": edu_spec,
             "completionYear": str(data.get("highest_qualification", {}).get("year", "") or ""),
         }
     }
@@ -1112,7 +1135,14 @@ def _render_review_card(filename, file_info):
     sg_edu = mapping.get("education", {}) or {}
 
     f_path = " → ".join(x for x in [sg_func.get("functional_area"), sg_func.get("sub_functional_area"), sg_func.get("role")] if x) if sg_func.get("matched") else "— Not Confirmed (Left Blank) —"
-    e_path = " → ".join(x for x in [sg_edu.get("qualification"), sg_edu.get("course"), sg_edu.get("specialization")] if x) if sg_edu.get("matched") else "— Not Confirmed (Left Blank) —"
+    
+    # Render confirmed hierarchy, partial hierarchy with missing branch alert, or unconfirmed
+    if sg_edu.get("matched"):
+        e_path = f"{sg_edu.get('qualification')} → {sg_edu.get('course')} → {sg_edu.get('specialization')}"
+    elif sg_edu.get("course_matched"):
+        e_path = f"{sg_edu.get('qualification')} → {sg_edu.get('course')} → [⚠️ Select Specialization]"
+    else:
+        e_path = "— Not Confirmed (Left Blank) —"
 
     _info_grid([
         ("Core Role", sg_core.get("name", "") if sg_core.get("matched") else "— Not Confirmed —"),
@@ -1197,16 +1227,116 @@ def _render_review_card(filename, file_info):
         sel_edu_rec = next((e for e in EDUCATION_MASTER if f"{e['qualification']} → {e['course']} → {e['specialization']}" == sel_edu_lbl), None)
         
         raw_edu = factual_edu.get("qualification_text") or f"{factual_edu.get('degree', '')} {factual_edu.get('specialization', '')}".strip()
-        _field_hint(raw_edu, sg_edu.get("matched"), unconfirmed_msg="Branch missing or not in database, choose equivalent")
+        if sg_edu.get("matched"):
+            _field_hint(raw_edu, True)
+        elif sg_edu.get("course_matched"):
+            _field_hint(
+                raw_edu,
+                False,
+                unconfirmed_msg=f"Course '{sg_edu.get('course')}' confirmed. Qualification & Course will auto-fill in Skill Groomers (select specialization above if you wish to override now)."
+            )
+        else:
+            _field_hint(raw_edu, False, unconfirmed_msg="Degree/course not recognized, please select manually")
 
     approve_key = f"approved_{filename}"
     if approve_key not in st.session_state:
         st.session_state[approve_key] = False
 
     st.markdown("### 3. Approval & Export")
-    if st.button("✅ Approve Candidate", key=f"app_{filename}", use_container_width=True):
-        st.session_state[approve_key] = True
-        st.success("Candidate verified and approved for Skill Groomers.")
+
+    # Developer Debug Inspector Toggle
+    dbg_key = f"debug_open_{filename}"
+    if dbg_key not in st.session_state:
+        st.session_state[dbg_key] = False
+
+    col_app, col_dbg = st.columns([3, 1])
+    with col_app:
+        if st.button("✅ Approve Candidate", key=f"app_{filename}", use_container_width=True):
+            st.session_state[approve_key] = True
+            st.success("Candidate verified and approved for Skill Groomers.")
+    with col_dbg:
+        if st.button("🐞 Debug Info", key=f"dbg_btn_{filename}", use_container_width=True):
+            st.session_state[dbg_key] = not st.session_state[dbg_key]
+
+    # Resolve education strings for debugger & transfer payload
+    if sel_edu_rec:
+        deb_qual = sel_edu_rec.get("qualification", "")
+        deb_course = sel_edu_rec.get("course", "")
+        deb_spec = sel_edu_rec.get("specialization", "")
+    elif sg_edu.get("course_matched"):
+        deb_qual = sg_edu.get("qualification", "")
+        deb_course = sg_edu.get("course", "")
+        deb_spec = sg_edu.get("specialization", "")
+    else:
+        deb_qual, deb_course, deb_spec = "", "", ""
+
+    if st.session_state[dbg_key]:
+        st.markdown(
+            """
+            <div style="border: 1px dashed #6366f1; border-radius: 12px; padding: 10px 14px; margin: 10px 0; background: #0f172a;">
+                <span style="color:#a5b4fc; font-weight:800; font-size:12px; text-transform:uppercase; letter-spacing:0.06em;">
+                    🛠️ Developer Debug Inspector
+                </span>
+            </div>
+            """,
+            unsafe_allow_html=True,
+        )
+
+        tab_payload, tab_gemini, tab_mapping, tab_math = st.tabs([
+            "1. Extension Payload",
+            "2. Raw Gemini JSON",
+            "3. Taxonomy Mapping",
+            "4. Experience Math"
+        ])
+
+        with tab_payload:
+            st.caption("Decoded JSON sent to the extension / bookmarklet:")
+            y, m = split_months(tot_m)
+            st.json({
+                "coreRole": sel_core if sel_core != "— Not selected —" else "",
+                "fullName": data.get("candidate_name", ""),
+                "emailId": data.get("email", ""),
+                "mobileNumber": data.get("phone", ""),
+                "alternateNumber": data.get("alternate_phone", ""),
+                "dateOfBirth": _sg_date(data.get("date_of_birth")),
+                "gender": data.get("gender", ""),
+                "currentCity": "" if sel_city == "— Not selected —" else sel_city,
+                "currentState": "" if sel_state == "— Not selected —" else sel_state,
+                "nativeCity": "" if sel_native_city == "— Not selected —" else sel_native_city,
+                "nativeState": "" if sel_native_state == "— Not selected —" else sel_native_state,
+                "keySkills": list(sel_kw or [])[:4],
+                "functionalArea": sel_func_rec.get("functional_area", "") if sel_func_rec else "",
+                "role": sel_func_rec.get("role", "") if sel_func_rec else "",
+                "industry": "" if sel_ind == "— Not selected —" else sel_ind,
+                "currentDesignation": cur.get("designation", "") if cur else "",
+                "currentEmployer": cur.get("company", "") if cur else "",
+                "totalExperienceInYears": None if has_year_only_employment_dates(jobs) else y,
+                "totalExperienceInMonths": None if has_year_only_employment_dates(jobs) else m,
+                "totalNumberOfJobs": str(number_of_employers(jobs)),
+                "qualification": deb_qual,
+                "course": deb_course,
+                "specialization": deb_spec,
+                "completionYear": str(data.get("highest_qualification", {}).get("year", "") or ""),
+            })
+
+        with tab_gemini:
+            st.caption("Exact output from Gemini API before Python normalization:")
+            st.json(data)
+
+        with tab_mapping:
+            st.caption("Taxonomy scores and database matching results:")
+            st.json(mapping)
+
+        with tab_math:
+            st.caption("Experience calculation breakdown:")
+            st.write({
+                "Total Valid Months": tot_m,
+                "Formatted Experience": experience_display(jobs),
+                "Distinct Employers": number_of_employers(jobs),
+                "Job Transitions": compute_job_changes(jobs),
+                "Has Year-Only Dates": has_year_only_employment_dates(jobs),
+                "Raw Jobs Count": len(jobs),
+            })
 
     transfer_url = build_transfer_url(data, mapping, sel_core, sel_func_rec, sel_ind, sel_kw, sel_city, sel_state, sel_native_city, sel_native_state, sel_edu_rec)
 
