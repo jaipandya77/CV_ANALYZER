@@ -1202,78 +1202,78 @@ def _render_review_card(filename, file_info):
 # ------------------------------------------------------------
     # 🛠️ DEVELOPER DEBUG INSPECTOR
     # ------------------------------------------------------------
-    dbg_key = f"debug_open_{filename}"
-    if dbg_key not in st.session_state:
-        st.session_state[dbg_key] = False
-
-    # Debug toggle button
-    col_app, col_dbg = st.columns([3, 1])
-    with col_dbg:
-        if st.button("🐞 Debug Info", key=f"dbg_btn_{filename}", use_container_width=True):
-            st.session_state[dbg_key] = not st.session_state[dbg_key]
-
-    # Render debug panels when toggled ON
-    if st.session_state[dbg_key]:
-        st.markdown(
-            """
-            <div style="border: 1px dashed #6366f1; border-radius: 12px; padding: 14px; margin: 12px 0; background: #0f172a;">
-                <span style="color:#a5b4fc; font-weight:800; font-size:13px; text-transform:uppercase; letter-spacing:0.06em;">
-                    🛠️ Developer Debug Inspector
-                </span>
-            </div>
-            """,
-            unsafe_allow_html=True,
-        )
-
-        tab_payload, tab_gemini, tab_mapping, tab_math = st.tabs([
-            "1. Extension Payload",
-            "2. Raw Gemini JSON",
-            "3. Taxonomy Mapping",
-            "4. Experience Math"
-        ])
-
-        with tab_payload:
-            st.caption("Decoded JSON transferred to the browser extension / bookmarklet:")
-            # Reconstruct the candidate dictionary for inspection
-            cur, prev = get_current_and_previous_jobs(jobs)
-            y, m = split_months(tot_m)
-            avg_y, avg_m = split_months(average_tenure_months(tot_m, compute_job_changes(jobs)))
-            st.json({
-                "coreRole": sel_core if sel_core != "— Not selected —" else "",
-                "fullName": data.get("candidate_name", ""),
-                "emailId": data.get("email", ""),
-                "mobileNumber": data.get("phone", ""),
-                "currentCity": "" if sel_city == "— Not selected —" else sel_city,
-                "currentState": "" if sel_state == "— Not selected —" else sel_state,
-                "keySkills": list(sel_kw or [])[:4],
-                "functionalArea": sel_func_rec.get("functional_area", "") if sel_func_rec else "",
-                "role": sel_func_rec.get("role", "") if sel_func_rec else "",
-                "totalExperienceInYears": None if has_year_only_employment_dates(jobs) else y,
-                "totalExperienceInMonths": None if has_year_only_employment_dates(jobs) else m,
-                "totalNumberOfJobs": str(number_of_employers(jobs)),
-                "qualification": sel_edu_rec.get("qualification", "") if sel_edu_rec else "",
-                "course": sel_edu_rec.get("course", "") if sel_edu_rec else "",
-                "specialization": sel_edu_rec.get("specialization", "") if sel_edu_rec else "",
-            })
-
-        with tab_gemini:
-            st.caption("Exact output from Gemini API before Python processing:")
-            st.json(data)
-
-        with tab_mapping:
-            st.caption("Taxonomy scores and database matching results:")
-            st.json(mapping)
-
-        with tab_math:
-            st.caption("Experience calculation breakdown:")
-            st.write({
-                "Total Valid Months": tot_m,
-                "Years / Months": f"{y}y {m}m",
-                "Distinct Employers": number_of_employers(jobs),
-                "Job Transitions": compute_job_changes(jobs),
-                "Has Year-Only Dates": has_year_only_employment_dates(jobs),
-                "Raw Jobs Count": len(jobs),
-            })
+        dbg_key = f"debug_open_{filename}"
+        if dbg_key not in st.session_state:
+            st.session_state[dbg_key] = False
+    
+        # Debug toggle button
+        col_app, col_dbg = st.columns([3, 1])
+        with col_dbg:
+            if st.button("🐞 Debug Info", key=f"dbg_btn_{filename}", use_container_width=True):
+                st.session_state[dbg_key] = not st.session_state[dbg_key]
+    
+        # Render debug panels when toggled ON
+        if st.session_state[dbg_key]:
+            st.markdown(
+                """
+                <div style="border: 1px dashed #6366f1; border-radius: 12px; padding: 14px; margin: 12px 0; background: #0f172a;">
+                    <span style="color:#a5b4fc; font-weight:800; font-size:13px; text-transform:uppercase; letter-spacing:0.06em;">
+                        🛠️ Developer Debug Inspector
+                    </span>
+                </div>
+                """,
+                unsafe_allow_html=True,
+            )
+    
+            tab_payload, tab_gemini, tab_mapping, tab_math = st.tabs([
+                "1. Extension Payload",
+                "2. Raw Gemini JSON",
+                "3. Taxonomy Mapping",
+                "4. Experience Math"
+            ])
+    
+            with tab_payload:
+                st.caption("Decoded JSON transferred to the browser extension / bookmarklet:")
+                # Reconstruct the candidate dictionary for inspection
+                cur, prev = get_current_and_previous_jobs(jobs)
+                y, m = split_months(tot_m)
+                avg_y, avg_m = split_months(average_tenure_months(tot_m, compute_job_changes(jobs)))
+                st.json({
+                    "coreRole": sel_core if sel_core != "— Not selected —" else "",
+                    "fullName": data.get("candidate_name", ""),
+                    "emailId": data.get("email", ""),
+                    "mobileNumber": data.get("phone", ""),
+                    "currentCity": "" if sel_city == "— Not selected —" else sel_city,
+                    "currentState": "" if sel_state == "— Not selected —" else sel_state,
+                    "keySkills": list(sel_kw or [])[:4],
+                    "functionalArea": sel_func_rec.get("functional_area", "") if sel_func_rec else "",
+                    "role": sel_func_rec.get("role", "") if sel_func_rec else "",
+                    "totalExperienceInYears": None if has_year_only_employment_dates(jobs) else y,
+                    "totalExperienceInMonths": None if has_year_only_employment_dates(jobs) else m,
+                    "totalNumberOfJobs": str(number_of_employers(jobs)),
+                    "qualification": sel_edu_rec.get("qualification", "") if sel_edu_rec else "",
+                    "course": sel_edu_rec.get("course", "") if sel_edu_rec else "",
+                    "specialization": sel_edu_rec.get("specialization", "") if sel_edu_rec else "",
+                })
+    
+            with tab_gemini:
+                st.caption("Exact output from Gemini API before Python processing:")
+                st.json(data)
+    
+            with tab_mapping:
+                st.caption("Taxonomy scores and database matching results:")
+                st.json(mapping)
+    
+            with tab_math:
+                st.caption("Experience calculation breakdown:")
+                st.write({
+                    "Total Valid Months": tot_m,
+                    "Years / Months": f"{y}y {m}m",
+                    "Distinct Employers": number_of_employers(jobs),
+                    "Job Transitions": compute_job_changes(jobs),
+                    "Has Year-Only Dates": has_year_only_employment_dates(jobs),
+                    "Raw Jobs Count": len(jobs),
+                })
     approve_key = f"approved_{filename}"
     if approve_key not in st.session_state:
         st.session_state[approve_key] = False
