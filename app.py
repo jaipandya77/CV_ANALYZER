@@ -369,33 +369,51 @@ resume_schema = {
 
 def extract_resume_data(raw_text, pdf_bytes=None):
     prompt = """
-Extract structured HR information from the resume below.
-The resume is the ONLY source of factual candidate information.
-Never invent personal information, employers, dates, education, salary, skills, or other facts.
-Accuracy is more important than completeness. If missing, return empty string "".
-Do not calculate total experience or tenure; Python calculates them.
+You are a precision factual data extraction engine for HR resumes.
+The resume is the SOLE source of truth. Never invent, extrapolate, or estimate facts.
+Accuracy takes absolute precedence over completeness. If a field is missing, return an empty string "" or an empty array [].
+Do NOT calculate total experience or tenure—Python handles all math deterministically.
 
-LOCATION:
-- current_city/state: Only from explicit residential/current location or candidate header.
-- native_city/state: Only from explicit permanent address/native place.
-- District is not state.
+1. CANDIDATE PROFILE & CONTACT:
+- candidate_name: Full official name in Title Case.
+- phone / alternate_phone: Primary and secondary contact numbers (strip redundant label words).
+- email: Valid email address.
+- date_of_birth: YYYY-MM-DD or DD/MM/YYYY if explicitly present; else "".
+- gender: "Male", "Female", or "" if not mentioned.
 
-PROFILE:
-- core_role: Broad primary career role (Safety, Planning, Civil Engineer, QA/QC, Billing, etc.).
-- functional_area: Functional department (Project Management, Safety / Health / Environment, etc.).
-- key_skills: Meaningful technical skills array.
-- role: Current or latest designation.
-- industry: Construction, Real Estate, IT, Oil and Gas, etc.
+2. LOCATIONS:
+- current_city / current_state: Candidate's present residential city/state.
+- native_city / native_state: Candidate's permanent home address/native place.
+- Note: Districts and localities are not states (e.g., Thane is in Maharashtra).
 
-HIGHEST QUALIFICATION:
-- highest COMPLETED academic qualification only.
-Hierarchy: Doctorate > Masters > Bachelors > Diploma > HSC > SSC.
-- qualification_text: preserve the wording written in the CV.
-- specialization: branch/stream only (e.g., Civil Engineering, Mechanical, Computers). If no branch is mentioned (e.g. just Polytechnic or Diploma), return "".
+3. DOMAIN & CLASSIFICATION FACTS:
+- role: Verbatim current or most recent official job designation as written on the resume. Do NOT summarize or shorten.
+- core_role: Candidate's primary functional specialty (e.g., QA/QC, Safety, Planning, Civil Engineer, Billing, MEP, Rebar Detailing, Architecture).
+- functional_area: Broader department (e.g., Quality Assurance / Quality Control, Project Management / Site Engineering, Safety / Health / Environment).
+- industry: Primary industry (e.g., Construction, Real Estate, Infrastructure, Oil & Gas, IT).
+- key_skills: Extract individual technical tools, methodologies, codes, and domain skills as separate ATOMIC array items (e.g., ["AutoCAD", "BBS", "Revit"], NOT ["AutoCAD and Revit"]). Strictly exclude soft skills (e.g., "hardworking", "team player", "punctual") and certifications.
+- certifications: Specific professional credentials (e.g., PMP, NEBOSH, IOSH, LEED AP, Six Sigma).
 
-WORK EXPERIENCE:
-Extract every professional position in chronological order, OLDEST FIRST.
-- start_date/end_date: YYYY-MM or YYYY. Ongoing: "Present".
+4. HIGHEST QUALIFICATION:
+- Extract the single HIGHEST COMPLETED academic qualification only.
+- Strict completion rule: Ignore pursuing, ongoing, or incomplete degrees.
+- Hierarchy: Doctorate > Masters > Bachelors > Diploma > HSC (12th) > SSC (10th).
+- qualification_text: The verbatim phrase written in the CV (e.g., "Diploma in Civil Engineering", "B.Tech Mechanical").
+- degree: Standard degree name (e.g., "Bachelor of Technology", "Diploma").
+- course: Standard course abbreviation (e.g., "B.Tech", "Diploma", "B.E.").
+- specialization: Specific academic branch only (e.g., "Civil Engineering", "Mechanical", "Electrical"). If no branch is mentioned (e.g., "Polytechnic Diploma"), return "".
+- institute: Name of the college/university.
+- year: 4-digit completion year (e.g., "2018").
+
+5. WORK EXPERIENCE:
+- Extract every professional position in chronological order, OLDEST FIRST.
+- company: Clean official organization name (remove extra descriptions).
+- designation: Exact designation held at that organization.
+- start_date / end_date: Standardize to "YYYY-MM" or "YYYY". If the position is currently active, end_date must be "Present".
+- country: Country of employment (default "India" if cities are in India).
+
+6. COMPENSATION:
+- annual_salary: The raw compensation string exactly as stated (e.g., "6.5 LPA", "8,50,000 INR"). If unstated, return "".
 """
 
     if pdf_bytes:
@@ -686,58 +704,235 @@ def best_named_match(value, names, minimum_score=0.82):
 
 
 def map_core_role(data, source_text=""):
-    raw = str(data.get("core_role", "") or "")
+    raw = str(data.get("core_role", "") or "").strip()
+    extracted_role = str(data.get("role", "") or "").strip()
+    
+    # 1. Gather designations with strict recency (Current job first, never oldest)
     jobs = sort_jobs(data.get("work_experience", []))
-    recent_titles = [normalize_master_text(j.get("designation", "")) for j in reversed(jobs[:4])]
+    cur_job, prev_job = get_current_and_previous_jobs(jobs)
+    
+    cur_title = cur_job.get("designation", "") if cur_job else ""
+    prev_title = prev_job.get("designation", "") if prev_job else ""
+    recent_titles = [j.get("designation", "") for j in reversed(jobs[-4:])] if jobs else []
 
-    rules = [
-        (["safety", "hse", "ehs"], "Safety"),
-        (["rebar detailer", "rebar draftsman"], "Rebar Detailing"),
-        (["mep"], "MEP"),
-        (["billing"], "Billing"),
-        (["qa qc", "qaqc", "quality engineer"], "QAQC"),
-        (["planning"], "Planning"),
+    title_candidates = []
+    if cur_title: title_candidates.append(cur_title)
+    if extracted_role and extracted_role not in title_candidates: title_candidates.append(extracted_role)
+    if raw and raw not in title_candidates: title_candidates.append(raw)
+    if prev_title and prev_title not in title_candidates: title_candidates.append(prev_title)
+    for t in recent_titles:
+        if t and t not in title_candidates: title_candidates.append(t)
+
+    norm_master_map = {normalize_master_text(r): r for r in CORE_ROLE_MASTER}
+
+    # Step A: Direct exact match against any normalized master role
+    for t in title_candidates:
+        t_n = normalize_master_text(t)
+        if t_n in norm_master_map:
+            return {"name": norm_master_map[t_n], "score": 1.0, "matched": True, "review_required": False}
+
+    # Step B: Domain Rule Mapping (Specific titles first, followed by broad disciplines)
+    domain_rules = [
+        # Quantity Surveying & Cost Estimation (handles database typo "Quantity Suveyor")
+        (["csa estimator"], "CSA Estimator"),
         (["quantity estimator"], "Quantity Estimator"),
-        (["quantity surveyor", "estimator"], "Estimator"),
-        (["project manager"], "Project Manager"),
-        (["site engineer", "civil engineer"], "Civil Engineer"),
-    ]
-    for t_n in recent_titles:
-        for triggers, target in rules:
-            if any(tr in t_n for tr in triggers) and target in CORE_ROLE_MASTER:
-                return {"name": target, "score": 0.99, "matched": True, "review_required": False}
+        (["quantity estimation"], "Quantity Estimation"),
+        (["quantity surveyor", "quantity suveyor", "qs engineer", "senior qs", "jr qs", "sr qs", "qs"], "Quantity Suveyor"),
+        (["estimator", "estimation engineer", "cost estimation", "cost estimator"], "Estimator"),
 
-    name, score = best_named_match(raw, CORE_ROLE_MASTER, minimum_score=0.85)
-    if name:
-        return {"name": name, "score": round(score, 3), "matched": True, "review_required": False}
+        # Rebar Detailing
+        (["rebar detailer", "rebar draftsman", "rebar detailing", "rebar lead", "rc detailer", "bar bending detailer"], "Rebar Detailing"),
+
+        # Safety, Health & Environment
+        (["corporate safety manager"], "corporate safety manager"),
+        (["deputy safety manager"], "Deputy safety manager"),
+        (["safety manager", "hse manager", "ehs manager"], "safety manager"),
+        (["safety officer", "hse officer", "ehs officer", "safety engineer"], "Safety Officer"),
+        (["scaffolding inspector"], "scaffolding Inspector"),
+        (["safety", "hse", "ehs", "fire and safety", "fire safety"], "Safety"),
+
+        # Planning, Scheduling & Controls
+        (["manager planning and coordination", "manager planning"], "Manager Planning & Coordination"),
+        (["planning engineer", "planning manager", "project planner", "lead planner", "scheduling engineer", "p6 planner"], "Planning"),
+        (["pmo analyst", "pmo lead", "pmo manager", "pmo"], "PMO"),
+
+        # Contracts, Tendering & Procurement
+        (["contracts and procurement", "tendering and contracts", "procurement engineer"], "Contracts & Procurement"),
+        (["contracts engineer", "contracts manager", "tendering engineer", "contracts"], "Contracts"),
+        (["billing engineer", "client billing", "subcontractor billing", "billing manager", "billing"], "Billing"),
+
+        # Quality Assurance / Quality Control
+        (["qa qc manager", "qaqc manager", "quality manager", "head quality"], "QA/QC Manager"),
+        (["quality engineer", "sr quality engineer", "qa engineer", "qc engineer"], "Quality Engineer"),
+        (["quality control", "qc inspector", "quality inspector"], "Quality control"),
+        (["qa qc", "qaqc", "quality assurance"], "QAQC"),
+
+        # MEP / Building Services
+        (["mep engineer", "mep coordinator", "mep manager", "mep site", "hvac engineer", "plumbing engineer", "electrical mep", "mep"], "MEP"),
+
+        # Finishing, Fit-outs & Interiors
+        (["finishing supervisor", "fit out supervisor", "interior supervisor"], "Finishing Supervisor"),
+        (["finishing engineer", "fit out engineer", "finishing", "fitout", "interior fit out"], "Finishing"),
+
+        # Site Engineering & Execution
+        (["civil supervisor", "site supervisor civil", "general supervisor"], "civil supervisor"),
+        (["site engineer civil", "civil site engineer", "site engineer"], "Site Engineer"),
+        (["civil engineer", "senior civil engineer", "project civil engineer"], "Civil Engineer"),
+        (["execution engineer", "execution manager", "site execution", "execution"], "Execution"),
+
+        # Project & Construction Management
+        (["project director"], "Project Director"),
+        (["project manager infra", "infra project manager"], "Project Manager - Infra"),
+        (["project manager", "senior project manager", "assistant project manager"], "Project Manager"),
+        (["construction manager", "construction lead"], "Construction Manager"),
+        (["project coordinator"], "Project coordinator"),
+        (["project engineer", "senior project engineer"], "Project Engineer"),
+        (["project management", "project or construction management"], "Project Management"),
+
+        # Architecture & Design
+        (["senior architect", "lead architect"], "Senior Architect"),
+        (["architect", "project architect", "junior architect", "architectural"], "Architect"),
+        (["design engineer", "design manager", "structural design", "design"], "Design"),
+
+        # Non-Civil, Plant & Corporate Functions
+        (["geotechnical engineer", "geotech engineer", "soil engineer"], "Geotechnical"),
+        (["plant and machinery", "plant and equipment", "pnm engineer", "pnm"], "plant & Machinery"),
+        (["talent acquisition", "recruiter", "recruitment specialist"], "Talent Acquisition/ Recruitment"),
+        (["am hr", "assistant manager hr"], "AM HR"),
+        (["human resources", "hr executive", "hr manager", "hr"], "HR"),
+        (["business development manager", "bdm"], "Business Development Manager"),
+        (["business development", "bdr"], "Business Development"),
+        (["accounts", "accountant", "senior accountant"], "accounts"),
+        (["finance manager", "finance lead", "finance"], "Finance"),
+        (["sales manager", "sales executive", "sales"], "sales"),
+    ]
+
+    for title in title_candidates:
+        title_norm = normalize_master_text(title)
+        for triggers, target in domain_rules:
+            for tr in triggers:
+                if re.search(r"\b" + re.escape(tr) + r"\b", title_norm):
+                    if target in CORE_ROLE_MASTER:
+                        return {"name": target, "score": 0.99, "matched": True, "review_required": False}
+
+    # Step C: Fallback fuzzy matching on raw extracted core role
+    if raw:
+        name, score = best_named_match(raw, CORE_ROLE_MASTER, minimum_score=0.78)
+        if name:
+            return {"name": name, "score": round(score, 3), "matched": True, "review_required": False}
+
     return {"name": "", "score": 0.0, "matched": False, "review_required": True}
 
 
 def map_functional_area(data, source_text=""):
-    evidence = normalize_master_text(f"{data.get('core_role','')} {data.get('role','')} {data.get('functional_area','')} {source_text}")
+    raw_fa = str(data.get("functional_area", "") or "")
+    raw_role = str(data.get("role", "") or "")
+    core_role = str(data.get("core_role", "") or "")
+    
+    # 1. Gather all title and discipline evidence
     jobs = sort_jobs(data.get("work_experience", []))
-    title_n = normalize_master_text(jobs[-1].get("designation", "") if jobs else "")
+    cur_job, prev_job = get_current_and_previous_jobs(jobs)
+    
+    cur_title = cur_job.get("designation", "") if cur_job else ""
+    evidence = normalize_master_text(f"{raw_fa} {raw_role} {core_role} {cur_title} {source_text}")
+    title_n = normalize_master_text(f"{cur_title} {raw_role}")
 
-    if any(t in title_n for t in ["safety officer", "safety engineer", "hse", "ehs"]):
+    # Helper: Search FUNCTIONAL_AREA_MASTER for records matching specific keyword criteria
+    def find_master_records(keywords):
+        matches = []
+        for r in FUNCTIONAL_AREA_MASTER:
+            comb = normalize_master_text(f"{r.get('functional_area','')} {r.get('sub_functional_area','')} {r.get('role','')}")
+            if any(k in comb for k in keywords):
+                matches.append(r)
+        return matches
+
+    # ------------------------------------------------------------
+    # RULE 1: QA / QC & QUALITY ASSURANCE / CONTROL
+    # ------------------------------------------------------------
+    qa_triggers = ["qa qc", "qaqc", "quality assurance", "quality control", "quality manager", "quality head", "project quality head", "quality engineer", "qc inspector"]
+    if any(q in title_n or q in normalize_master_text(raw_fa) for q in qa_triggers):
+        qa_recs = find_master_records(["qa qc", "qaqc", "quality"])
+        if qa_recs:
+            is_manager = any(m in title_n for m in ["manager", "head", "lead", "director", "chief", "senior manager", "sr manager"])
+            if is_manager:
+                # Prioritize Manager / Head level Quality record
+                mgr_rec = next((r for r in qa_recs if any(m in normalize_master_text(r.get("role", "")) for m in ["manager", "head", "lead"])), None)
+                if mgr_rec:
+                    return {**mgr_rec, "functionalAreaId": mgr_rec.get("role_id"), "matched": True, "review_required": False}
+            # Fallback to closest Quality record
+            best_qa = next((r for r in qa_recs if "quality" in normalize_master_text(r.get("role", ""))), qa_recs[0])
+            return {**best_qa, "functionalAreaId": best_qa.get("role_id"), "matched": True, "review_required": False}
+
+    # ------------------------------------------------------------
+    # RULE 2: SAFETY / HEALTH / ENVIRONMENT (HSE)
+    # ------------------------------------------------------------
+    if any(t in title_n or t in normalize_master_text(raw_fa) for t in ["safety officer", "safety engineer", "hse", "ehs", "safety manager", "fire safety"]):
         rec = next((r for r in FUNCTIONAL_AREA_MASTER if r.get("role_id") == 49), None)
-        if rec: return {**rec, "functionalAreaId": 49, "matched": True, "review_required": False}
+        if not rec:
+            safety_recs = find_master_records(["safety", "hse", "ehs"])
+            rec = safety_recs[0] if safety_recs else None
+        if rec:
+            return {**rec, "functionalAreaId": rec.get("role_id", 49), "matched": True, "review_required": False}
 
-    if any(t in title_n for t in ["rebar detailer", "planning engineer", "planning manager"]):
+    # ------------------------------------------------------------
+    # RULE 3: PLANNING, SCHEDULING & REBAR DETAILING
+    # ------------------------------------------------------------
+    if any(t in title_n for t in ["rebar detailer", "planning engineer", "planning manager", "project planner", "scheduler", "p6"]):
         rec = next((r for r in FUNCTIONAL_AREA_MASTER if r.get("role_id") == 66), None)
-        if rec: return {**rec, "functionalAreaId": 66, "matched": True, "review_required": False}
+        if rec:
+            return {**rec, "functionalAreaId": 66, "matched": True, "review_required": False}
 
+    # ------------------------------------------------------------
+    # RULE 4: BILLING, CONTRACTS & QUANTITY SURVEYING
+    # ------------------------------------------------------------
+    if any(t in title_n for t in ["billing engineer", "billing", "quantity surveyor", "quantity suveyor", "estimation", "tendering"]):
+        billing_recs = find_master_records(["billing", "quantity", "contracts"])
+        if billing_recs:
+            return {**billing_recs[0], "functionalAreaId": billing_recs[0].get("role_id"), "matched": True, "review_required": False}
+
+    # ------------------------------------------------------------
+    # RULE 5: MEP / HVAC / ELECTRICAL / MECHANICAL
+    # ------------------------------------------------------------
+    if "electrical" in title_n:
+        rec = next((r for r in FUNCTIONAL_AREA_MASTER if r.get("role_id") == 60), None)
+        if rec: return {**rec, "functionalAreaId": 60, "matched": True, "review_required": False}
+    if any(t in title_n for t in ["mep", "hvac", "plumbing", "mechanical"]):
+        rec = next((r for r in FUNCTIONAL_AREA_MASTER if r.get("role_id") == 62), None)
+        if rec: return {**rec, "functionalAreaId": 62, "matched": True, "review_required": False}
+
+    # ------------------------------------------------------------
+    # RULE 6: CIVIL SITE ENGINEERING & PROJECT MANAGEMENT
+    # ------------------------------------------------------------
     if any(t in title_n for t in ["project manager", "site engineer", "civil engineer"]) and any(t in evidence for t in ["civil", "construction"]):
         rec = next((r for r in FUNCTIONAL_AREA_MASTER if r.get("role_id") == 59), None)
-        if rec: return {**rec, "functionalAreaId": 59, "matched": True, "review_required": False}
+        if rec:
+            return {**rec, "functionalAreaId": 59, "matched": True, "review_required": False}
 
+    # ------------------------------------------------------------
+    # RULE 7: FALLBACK FUZZY & TOKEN-OVERLAP MATCHING
+    # ------------------------------------------------------------
     best, best_s = None, 0.0
     for r in FUNCTIONAL_AREA_MASTER:
-        s = max(text_similarity(data.get("functional_area", ""), r.get("functional_area", "")), text_similarity(data.get("role", ""), r.get("role", "")))
+        r_fa = r.get("functional_area", "")
+        r_role = r.get("role", "")
+        
+        # Check standard similarity
+        s1 = text_similarity(raw_fa, r_fa)
+        s2 = text_similarity(raw_role, r_role)
+        s3 = text_similarity(cur_title, r_role)
+        
+        # Token containment check (avoids length penalties on long titles)
+        tokens_input = tokens(f"{cur_title} {raw_role} {raw_fa}")
+        tokens_master = tokens(f"{r_fa} {r_role}")
+        t_overlap = len(tokens_input & tokens_master) / len(tokens_master) if tokens_master else 0.0
+        
+        s = max(s1, s2, s3, t_overlap)
         if s > best_s:
             best, best_s = r, s
 
-    if best and best_s >= 0.82:
+    if best and best_s >= 0.75:
         return {**best, "functionalAreaId": best.get("role_id"), "matched": True, "review_required": False}
+
     return {"functionalAreaId": None, "functional_area": "", "sub_functional_area": "", "role": "", "matched": False, "review_required": True}
 
 
@@ -759,15 +954,123 @@ def map_industry(data):
 
 
 def map_keywords(data, source_text=""):
-    factual = clean_key_skills(data.get("key_skills", []) or [])
+    raw_skills = data.get("key_skills", []) or []
+    factual = clean_key_skills(raw_skills)
+
+    # 1. Split compound skills (e.g. "AutoCAD, Revit" -> ["AutoCAD", "Revit"])
+    candidate_skills = []
+    for s in factual:
+        parts = re.split(r"[,;/|]|\band\b", str(s), flags=re.I)
+        for p in parts:
+            p_clean = p.strip().strip("'\"").strip()
+            if p_clean and p_clean not in candidate_skills:
+                candidate_skills.append(p_clean)
+
+    # 2. Normalized lookup table
+    norm_to_master = {normalize_master_text(k): k.strip() for k in KEYWORD_MASTER if str(k).strip()}
+
+    # 3. Domain alias dictionary
+    skill_aliases = {
+        "bar bending schedule": "BBS",
+        "bar bending": "BBS",
+        "bbs": "BBS",
+        "primavera p6": "Primavera",
+        "p6": "Primavera",
+        "primavera": "Primavera",
+        "microsoft project": "MSP",
+        "ms project": "MSP",
+        "msp": "MSP",
+        "mivan formwork": "Mivan",
+        "mivan shuttering": "Mivan",
+        "mivan": "Mivan",
+        "running account bills": "RA Bill",
+        "running account bill": "RA Bill",
+        "ra bills": "RA Bill",
+        "ra billing": "RA Bill",
+        "ra bill": "RA Bill",
+        "client billing": "Billing",
+        "subcontractor billing": "Billing",
+        "quality assurance": "QAQC",
+        "quality control": "QAQC",
+        "qa qc": "QAQC",
+        "qaqc": "QAQC",
+        "autocad 2d": "AutoCAD",
+        "autocad 3d": "AutoCAD",
+        "autocad drafting": "AutoCAD",
+        "cad": "AutoCAD",
+        "autocad": "AutoCAD",
+        "quantity takeoff": "Quantity Take-off",
+        "quantity take off": "Quantity Take-off",
+        "boq preparation": "BOQ",
+        "bill of quantities": "BOQ",
+        "boq": "BOQ",
+        "rate analysis": "Rate Analysis",
+        "estimation and costing": "Estimation",
+        "cost estimation": "Estimation",
+        "quantity survey": "Quantity Surveying",
+        "quantity surveyor": "Quantity Surveying",
+        "revit architecture": "Revit",
+        "autodesk revit": "Revit",
+        "revit": "Revit",
+        "staad pro": "STAAD.Pro",
+        "staad": "STAAD.Pro",
+        "etabs": "ETABS",
+        "ms office": "MS Office",
+        "ms excel": "MS Excel",
+        "advance excel": "MS Excel",
+        "advanced excel": "MS Excel",
+        "excel": "MS Excel",
+    }
+
     selected = []
-    for skill in factual:
-        clean = skill.strip().strip("'\"").strip()
-        matched = next((k for k in KEYWORD_MASTER if normalize_master_text(k) == normalize_master_text(clean)), None)
-        if matched and matched not in selected:
-            selected.append(matched.strip().strip("'\"").strip())
-        if len(selected) == 4:
-            break
+
+    def add_match(val):
+        if val and val in KEYWORD_MASTER and val not in selected:
+            selected.append(val)
+
+    # 4. Resolve candidate skills against KEYWORD_MASTER
+    for skill in candidate_skills:
+        s_norm = normalize_master_text(skill)
+        if not s_norm:
+            continue
+
+        # A. Direct match
+        if s_norm in norm_to_master:
+            add_match(norm_to_master[s_norm])
+            continue
+
+        # B. Alias match
+        if s_norm in skill_aliases:
+            target = skill_aliases[s_norm]
+            target_norm = normalize_master_text(target)
+            if target in KEYWORD_MASTER:
+                add_match(target)
+                continue
+            elif target_norm in norm_to_master:
+                add_match(norm_to_master[target_norm])
+                continue
+
+        # C. Phrase & word boundary match
+        matched_kw = None
+        for k_norm, k_orig in norm_to_master.items():
+            if len(k_norm) < 3:
+                continue
+            if re.search(r"\b" + re.escape(k_norm) + r"\b", s_norm):
+                matched_kw = k_orig
+                break
+            elif len(s_norm) >= 3 and re.search(r"\b" + re.escape(s_norm) + r"\b", k_norm):
+                matched_kw = k_orig
+                break
+
+        if matched_kw:
+            add_match(matched_kw)
+            continue
+
+        # D. High-confidence fuzzy match fallback (>= 0.86)
+        best_n, best_s = best_named_match(skill, KEYWORD_MASTER, minimum_score=0.86)
+        if best_n:
+            add_match(best_n)
+
     return selected
 
 
@@ -793,6 +1096,7 @@ def _match_course_family(comb):
         ([r"\bb\s*com\b", r"\bbcom\b", r"\bbachelor\s*(?:of\s*)?commerce\b"], "Bachelor of Commerce (B.Com)"),
         ([r"\bbba\b", r"\bbachelor\s*(?:of\s*)?business\s+administration\b"], "Bachelor of Business Administration (BBA)"),
         ([r"\bbca\b", r"\bbachelor\s*(?:of\s*)?computer\s+applications?\b"], "Bachelor of Computer Application (BCA)"),
+        ([r"\bm\s*arch\b", r"\bmarch\b", r"\bmaster\s*(?:of\s*)?architecture\b"], "Masters of Arcitect (M. Arch.)"),
         ([r"\bb\s*arch\b", r"\bbarch\b", r"\bbachelor\s*(?:of\s*)?architecture\b"], "Bachor of Arcitect (B. Arch.)"),
         ([r"\bdiploma\b"], "Diploma"),
         ([r"\bhsc\b", r"\b12th\b"], "HSC"),
@@ -816,19 +1120,6 @@ def map_education(data):
     comb = normalize_master_text(f"{degree} {course} {qtext}")
     spec_n = normalize_master_text(spec)
 
-    generic_words = {"polytechnic", "diploma", "engineering", "degree", "general", "polytechnique", "technical", "studies", "institute"}
-    if not spec_n or spec_n in generic_words:
-        return {
-            "educationId": None,
-            "qualification": "",
-            "course": "",
-            "specialization": "",
-            "completionYear": str(year or ""),
-            "matched": False,
-            "review_required": True,
-            "reason": "Specialization branch not confirmed in CV"
-        }
-
     pref_course = _match_course_family(comb)
     if not pref_course:
         return {
@@ -838,6 +1129,7 @@ def map_education(data):
             "specialization": "",
             "completionYear": str(year or ""),
             "matched": False,
+            "course_matched": False,
             "review_required": True,
             "reason": "Course family not confirmed"
         }
@@ -851,8 +1143,25 @@ def map_education(data):
             "specialization": "",
             "completionYear": str(year or ""),
             "matched": False,
+            "course_matched": False,
             "review_required": True,
             "reason": "Course not found in master data"
+        }
+
+    cand_qualification = cands[0]["qualification"].strip()
+
+    generic_words = {"polytechnic", "diploma", "engineering", "degree", "general", "polytechnique", "technical", "studies", "institute"}
+    if not spec_n or spec_n in generic_words:
+        return {
+            "educationId": None,
+            "qualification": cand_qualification,
+            "course": pref_course,
+            "specialization": "",
+            "completionYear": str(year or ""),
+            "matched": False,
+            "course_matched": True,
+            "review_required": True,
+            "reason": f"Course '{pref_course}' confirmed, but specialization branch is missing in CV"
         }
 
     cleaned_spec = re.sub(r"\s+engineering$", "", spec_n).strip()
@@ -869,18 +1178,20 @@ def map_education(data):
             "specialization": exact["specialization"].strip(),
             "completionYear": str(year or ""),
             "matched": True,
+            "course_matched": True,
             "review_required": False
         }
 
     return {
         "educationId": None,
-        "qualification": "",
-        "course": "",
+        "qualification": cand_qualification,
+        "course": pref_course,
         "specialization": "",
         "completionYear": str(year or ""),
         "matched": False,
+        "course_matched": True,
         "review_required": True,
-        "reason": f"Specialization '{spec}' not confirmed in Skill Groomers options"
+        "reason": f"Course '{pref_course}' confirmed, but specialization '{spec}' not found in master data"
     }
 
 
@@ -1034,6 +1345,21 @@ def build_transfer_url(data, mapping, sel_core, sel_func, sel_ind, sel_kw, sel_c
     y, m = split_months(tot_m)
     avg_y, avg_m = split_months(average_tenure_months(tot_m, compute_job_changes(jobs)))
 
+    # Graceful partial education fallback: if recruiter didn't select an override, fill confirmed parts
+    sg_edu = mapping.get("education", {}) or {}
+    if sel_edu:
+        edu_qual = sel_edu.get("qualification", "")
+        edu_course = sel_edu.get("course", "")
+        edu_spec = sel_edu.get("specialization", "")
+    elif sg_edu.get("course_matched"):
+        edu_qual = sg_edu.get("qualification", "")
+        edu_course = sg_edu.get("course", "")
+        edu_spec = sg_edu.get("specialization", "")
+    else:
+        edu_qual = ""
+        edu_course = ""
+        edu_spec = ""
+
     transfer = {
         "version": 1,
         "candidate": {
@@ -1048,7 +1374,7 @@ def build_transfer_url(data, mapping, sel_core, sel_func, sel_ind, sel_kw, sel_c
             "currentState": "" if sel_state == "— Not selected —" else sel_state,
             "nativeCity": "" if sel_native_city == "— Not selected —" else sel_native_city,
             "nativeState": "" if sel_native_state == "— Not selected —" else sel_native_state,
-            "keySkills": list(sel_kw or [])[:4],
+            "keySkills": list(sel_kw or []),
             "functionalArea": sel_func.get("functional_area", "") if sel_func else "",
             "role": sel_func.get("role", "") if sel_func else "",
             "industry": "" if sel_ind == "— Not selected —" else sel_ind,
@@ -1065,9 +1391,9 @@ def build_transfer_url(data, mapping, sel_core, sel_func, sel_ind, sel_kw, sel_c
             "annualSalaryLakh": parse_salary_lakhs(data.get("annual_salary")),
             "averageTenureInYears": None if has_year_only_employment_dates(jobs) else avg_y,
             "averageTenureInMonths": None if has_year_only_employment_dates(jobs) else avg_m,
-            "qualification": sel_edu.get("qualification", "") if sel_edu else "",
-            "course": sel_edu.get("course", "") if sel_edu else "",
-            "specialization": sel_edu.get("specialization", "") if sel_edu else "",
+            "qualification": edu_qual,
+            "course": edu_course,
+            "specialization": edu_spec,
             "completionYear": str(data.get("highest_qualification", {}).get("year", "") or ""),
         }
     }
@@ -1112,13 +1438,19 @@ def _render_review_card(filename, file_info):
     sg_edu = mapping.get("education", {}) or {}
 
     f_path = " → ".join(x for x in [sg_func.get("functional_area"), sg_func.get("sub_functional_area"), sg_func.get("role")] if x) if sg_func.get("matched") else "— Not Confirmed (Left Blank) —"
-    e_path = " → ".join(x for x in [sg_edu.get("qualification"), sg_edu.get("course"), sg_edu.get("specialization")] if x) if sg_edu.get("matched") else "— Not Confirmed (Left Blank) —"
+    
+    if sg_edu.get("matched"):
+        e_path = f"{sg_edu.get('qualification')} → {sg_edu.get('course')} → {sg_edu.get('specialization')}"
+    elif sg_edu.get("course_matched"):
+        e_path = f"{sg_edu.get('qualification')} → {sg_edu.get('course')} → [⚠️ Select Specialization]"
+    else:
+        e_path = "— Not Confirmed (Left Blank) —"
 
     _info_grid([
         ("Core Role", sg_core.get("name", "") if sg_core.get("matched") else "— Not Confirmed —"),
         ("Industry", sg_ind.get("name", "") if sg_ind.get("matched") else "— Not Confirmed —"),
         ("Functional Area", f_path),
-        ("Key Skills (Top 4)", ", ".join((mapping.get("key_skills", []) or [])[:4])),
+        ("Key Skills", ", ".join(mapping.get("key_skills", []) or [])),
         ("Education", e_path),
     ], columns=2)
 
@@ -1144,9 +1476,9 @@ def _render_review_card(filename, file_info):
         sel_ind = st.selectbox("Industry", ind_opts, index=_safe_index(ind_opts, curr_ind_val), key=f"ind_{filename}")
         _field_hint(data.get("industry"), sg_ind.get("matched"))
 
-        # 4. Key Skills
+        # 4. Key Skills (Uncapped & Auto-selected)
         kw_opts = sorted({str(k).strip() for k in KEYWORD_MASTER if str(k).strip()}, key=str.lower)
-        sel_kw = st.multiselect("Key Skills (max 4)", kw_opts, default=mapping.get("key_skills", [])[:4], max_selections=4, key=f"kw_{filename}")
+        sel_kw = st.multiselect("Key Skills", kw_opts, default=mapping.get("key_skills", []), key=f"kw_{filename}")
 
         # Show all raw skills extracted directly from the CV PDF
         raw_cv_skills = clean_key_skills(data.get("key_skills", []) or [])
@@ -1197,16 +1529,116 @@ def _render_review_card(filename, file_info):
         sel_edu_rec = next((e for e in EDUCATION_MASTER if f"{e['qualification']} → {e['course']} → {e['specialization']}" == sel_edu_lbl), None)
         
         raw_edu = factual_edu.get("qualification_text") or f"{factual_edu.get('degree', '')} {factual_edu.get('specialization', '')}".strip()
-        _field_hint(raw_edu, sg_edu.get("matched"), unconfirmed_msg="Branch missing or not in database, choose equivalent")
+        if sg_edu.get("matched"):
+            _field_hint(raw_edu, True)
+        elif sg_edu.get("course_matched"):
+            _field_hint(
+                raw_edu,
+                False,
+                unconfirmed_msg=f"Course '{sg_edu.get('course')}' confirmed. Qualification & Course will auto-fill in Skill Groomers (select specialization above if you wish to override now)."
+            )
+        else:
+            _field_hint(raw_edu, False, unconfirmed_msg="Degree/course not recognized, please select manually")
 
     approve_key = f"approved_{filename}"
     if approve_key not in st.session_state:
         st.session_state[approve_key] = False
 
     st.markdown("### 3. Approval & Export")
-    if st.button("✅ Approve Candidate", key=f"app_{filename}", use_container_width=True):
-        st.session_state[approve_key] = True
-        st.success("Candidate verified and approved for Skill Groomers.")
+
+    # Developer Debug Inspector Toggle
+    dbg_key = f"debug_open_{filename}"
+    if dbg_key not in st.session_state:
+        st.session_state[dbg_key] = False
+
+    col_app, col_dbg = st.columns([3, 1])
+    with col_app:
+        if st.button("✅ Approve Candidate", key=f"app_{filename}", use_container_width=True):
+            st.session_state[approve_key] = True
+            st.success("Candidate verified and approved for Skill Groomers.")
+    with col_dbg:
+        if st.button("🐞 Debug Info", key=f"dbg_btn_{filename}", use_container_width=True):
+            st.session_state[dbg_key] = not st.session_state[dbg_key]
+
+    # Resolve education strings for debugger & transfer payload
+    if sel_edu_rec:
+        deb_qual = sel_edu_rec.get("qualification", "")
+        deb_course = sel_edu_rec.get("course", "")
+        deb_spec = sel_edu_rec.get("specialization", "")
+    elif sg_edu.get("course_matched"):
+        deb_qual = sg_edu.get("qualification", "")
+        deb_course = sg_edu.get("course", "")
+        deb_spec = sg_edu.get("specialization", "")
+    else:
+        deb_qual, deb_course, deb_spec = "", "", ""
+
+    if st.session_state[dbg_key]:
+        st.markdown(
+            """
+            <div style="border: 1px dashed #6366f1; border-radius: 12px; padding: 10px 14px; margin: 10px 0; background: #0f172a;">
+                <span style="color:#a5b4fc; font-weight:800; font-size:12px; text-transform:uppercase; letter-spacing:0.06em;">
+                    🛠️ Developer Debug Inspector
+                </span>
+            </div>
+            """,
+            unsafe_allow_html=True,
+        )
+
+        tab_payload, tab_gemini, tab_mapping, tab_math = st.tabs([
+            "1. Extension Payload",
+            "2. Raw Gemini JSON",
+            "3. Taxonomy Mapping",
+            "4. Experience Math"
+        ])
+
+        with tab_payload:
+            st.caption("Decoded JSON sent to the extension / bookmarklet:")
+            y, m = split_months(tot_m)
+            st.json({
+                "coreRole": sel_core if sel_core != "— Not selected —" else "",
+                "fullName": data.get("candidate_name", ""),
+                "emailId": data.get("email", ""),
+                "mobileNumber": data.get("phone", ""),
+                "alternateNumber": data.get("alternate_phone", ""),
+                "dateOfBirth": _sg_date(data.get("date_of_birth")),
+                "gender": data.get("gender", ""),
+                "currentCity": "" if sel_city == "— Not selected —" else sel_city,
+                "currentState": "" if sel_state == "— Not selected —" else sel_state,
+                "nativeCity": "" if sel_native_city == "— Not selected —" else sel_native_city,
+                "nativeState": "" if sel_native_state == "— Not selected —" else sel_native_state,
+                "keySkills": list(sel_kw or []),
+                "functionalArea": sel_func_rec.get("functional_area", "") if sel_func_rec else "",
+                "role": sel_func_rec.get("role", "") if sel_func_rec else "",
+                "industry": "" if sel_ind == "— Not selected —" else sel_ind,
+                "currentDesignation": cur.get("designation", "") if cur else "",
+                "currentEmployer": cur.get("company", "") if cur else "",
+                "totalExperienceInYears": None if has_year_only_employment_dates(jobs) else y,
+                "totalExperienceInMonths": None if has_year_only_employment_dates(jobs) else m,
+                "totalNumberOfJobs": str(number_of_employers(jobs)),
+                "qualification": deb_qual,
+                "course": deb_course,
+                "specialization": deb_spec,
+                "completionYear": str(data.get("highest_qualification", {}).get("year", "") or ""),
+            })
+
+        with tab_gemini:
+            st.caption("Exact output from Gemini API before Python normalization:")
+            st.json(data)
+
+        with tab_mapping:
+            st.caption("Taxonomy scores and database matching results:")
+            st.json(mapping)
+
+        with tab_math:
+            st.caption("Experience calculation breakdown:")
+            st.write({
+                "Total Valid Months": tot_m,
+                "Formatted Experience": experience_display(jobs),
+                "Distinct Employers": number_of_employers(jobs),
+                "Job Transitions": compute_job_changes(jobs),
+                "Has Year-Only Dates": has_year_only_employment_dates(jobs),
+                "Raw Jobs Count": len(jobs),
+            })
 
     transfer_url = build_transfer_url(data, mapping, sel_core, sel_func_rec, sel_ind, sel_kw, sel_city, sel_state, sel_native_city, sel_native_state, sel_edu_rec)
 
