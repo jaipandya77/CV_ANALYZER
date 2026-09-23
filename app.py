@@ -1454,7 +1454,7 @@ def _render_review_card(filename, file_info):
         ("Education", e_path),
     ], columns=2)
 
-    with st.expander("✏️ Edit Classifications (Manual Override)"):
+    with st.expander("✏️ Edit Classifications (Manual Override)",expanded=True):
         # 1. Core Role
         c_opts = ["— Not selected —"] + sorted({str(r).strip() for r in CORE_ROLE_MASTER if str(r).strip()}, key=str.lower)
         curr_core_val = sg_core.get("name", "") if sg_core.get("matched") else ""
