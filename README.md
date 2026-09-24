@@ -82,7 +82,7 @@ This setup is required **once per Chrome profile**.
 
 ### Install
 
-1. Obtain `skillgroomers_autofill_easy_reliable.zip`.
+1. Download the extension: [sg-autofill-extension_v2.zip](https://github.com/jaipandya77/CV_ANALYZER/blob/main/sg-autofill-extension_v2.zip).
 2. Extract the ZIP to a **permanent folder** on the computer.
 3. Open Chrome.
 4. Enter `chrome://extensions` in the address bar.
@@ -93,7 +93,7 @@ This setup is required **once per Chrome profile**.
 
 The selected folder should look like:
 ``` text
-skillgroomers_autofill_extension/
+sg-autofill-extension_v2/
 ├── manifest.json
 ├── content.js
 ├── pageScript.js
@@ -200,7 +200,7 @@ The Excel output keeps factual CV information separate from Skill Groomers-speci
 
 Because of complex React calendar widgets on the portal, candidate transfer is split into a safe two-step process to prevent portal crashes. 
 
-1. Click **1. Autofill Add Candidate form→**. This opens the Skill Groomers Add Candidate page in a new unique tab and injects all text, dropdowns, and classifications.
+1. Click **1. AutoFill Add Candidate form →**. This opens the Skill Groomers Add Candidate page in a new unique tab and injects all text, dropdowns, and classifications.
 2. Return to the Streamlit app and click **2. Fill DOB Only 📅**. This communicates with the *exact same tab* you just opened and safely injects the calendar dates directly into the React Fiber nodes.
 
 ---
@@ -253,7 +253,7 @@ CV-Analyzer/
 ├── README.md
 ├── .gitignore
 │
-├── skillgroomers_autofill_extension/
+├── sg-autofill-extension_v2/
 │   ├── manifest.json
 │   ├── content.js
 │   ├── pageScript.js
@@ -274,7 +274,7 @@ Excel template populated by the application.
 **`skillgroomers_master_data_v7.json`**
 Local snapshot of supported Skill Groomers classifications and IDs.
 
-**`skillgroomers_autofill_extension/`**
+**`sg-autofill-extension_v2/`**
 Browser-side bridge used to fill reviewed candidate information into Skill Groomers. Utilizes `pageScript.js` to bypass CSP restrictions and directly manipulate Moment.js objects inside the React application's memory.
 
 **`.streamlit/secrets.toml`**
