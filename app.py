@@ -3,6 +3,8 @@ import json
 import re
 import os
 import time
+import streamlit.components.v1 as components
+import psutil
 import base64
 import urllib.parse
 from difflib import SequenceMatcher
@@ -17,262 +19,238 @@ from google.genai import types, errors
 st.set_page_config(page_title="CV Analyzer", page_icon="📄", layout="wide")
 
 # ------------------------------------------------------------
-# EXECUTIVE MIDNIGHT THEME (OPTIMIZED FOR 60 FPS SCROLLING)
+# EXECUTIVE MIDNIGHT THEME & VISUAL STYLING
 # ------------------------------------------------------------
 st.markdown("""<style>
+@import url('https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:wght@300;400;500;600;700&display=swap');
+
 :root {
-    --bg-canvas: #0b0f19;
-    --bg-card: #151c2c;
-    --border-subtle: #243048;
-    --border-accent: rgba(99, 102, 241, 0.35);
-    --text-main: #f8fafc;
-    --text-muted: #94a3b8;
-    --brand-primary: #6366f1;
+    --bg-canvas: #06090e;
+    --bg-surface: #0d121c;
+    --border-subtle: rgba(255, 255, 255, 0.04);
+    --border-glow: rgba(99, 102, 241, 0.3);
+    --text-primary: #f1f5f9;
+    --text-secondary: #94a3b8;
 }
 
-/* 1. Hardware-accelerated fixed canvas (zero repaint on scroll) */
-.stApp {
-    background-color: #0b0f19 !important;
-    background-image: radial-gradient(circle at 15% 0%, rgba(99,102,241,.12), transparent 360px),
-                      radial-gradient(circle at 85% 15%, rgba(139,92,246,.08), transparent 320px) !important;
-    background-attachment: fixed !important;
-    color: var(--text-main) !important;
+html, body, [data-testid="stAppViewContainer"], .stApp {
+    font-family: 'Plus Jakarta Sans', -apple-system, BlinkMacSystemFont, sans-serif;
+    background-color: var(--bg-canvas) !important;
+    background-image: 
+        radial-gradient(at 0% 0%, rgba(17, 24, 39, 1) 0, transparent 50%), 
+        radial-gradient(at 100% 100%, rgba(15, 23, 42, 1) 0, transparent 50%) !important;
+    color: var(--text-primary) !important;
 }
 
-[data-testid="stAppViewContainer"], [data-testid="stMainBlockContainer"] {
-    background: transparent !important;
-}
-
-.block-container {
-    max-width: 1240px;
-    padding-top: 1.6rem;
-    padding-bottom: 3.5rem;
-}
-
-h1, h2, h3, h4, h5, p, span, label {
-    color: var(--text-main) !important;
+h1, h2, h3, h4, h5, h6, p, label, .stMarkdown, div[data-testid="stMarkdownContainer"] p {
+    font-family: 'Plus Jakarta Sans', -apple-system, BlinkMacSystemFont, sans-serif !important;
+    color: var(--text-primary) !important;
     letter-spacing: -0.02em;
 }
 
-/* 2. Hero Banner */
-.app-hero {
-    position: relative;
-    border: 1px solid var(--border-accent);
-    border-radius: 20px;
-    padding: 28px 32px;
-    margin-bottom: 18px;
-    background: linear-gradient(135deg, #172033 0%, #0f172a 100%);
-    box-shadow: 0 4px 16px rgba(0, 0, 0, 0.25);
+/* Protect Streamlit Native Icons */
+[data-testid="stIconMaterial"], 
+.material-symbols-rounded, 
+.material-symbols-outlined, 
+.material-icons,
+[data-testid="stExpanderToggleIcon"],
+span[data-testid="stIconMaterial"] {
+    font-family: 'Material Symbols Rounded', 'Material Icons', sans-serif !important;
+    letter-spacing: normal !important;
+    text-transform: none !important;
 }
-.app-hero .eyebrow {
+
+header[data-testid="stHeader"] { background: transparent !important; }
+[data-testid="stToolbar"] { display: none !important; }
+.block-container { max-width: 1240px; padding-top: 2rem; padding-bottom: 3.5rem; }
+
+/* Premium Hero Section */
+.app-hero {
+    background: rgba(13, 18, 28, 0.6);
+    backdrop-filter: blur(20px);
+    -webkit-backdrop-filter: blur(20px);
+    border: 1px solid var(--border-subtle);
+    border-radius: 24px;
+    padding: 40px 48px;
+    margin-bottom: 24px;
+    box-shadow: 0 20px 40px rgba(0, 0, 0, 0.2);
+}
+
+.eyebrow {
     display: inline-flex;
     align-items: center;
-    padding: 5px 12px;
-    border-radius: 999px;
-    background: rgba(99, 102, 241, 0.18);
-    border: 1px solid rgba(99, 102, 241, 0.3);
-    font-size: .74rem;
+    font-size: 0.7rem;
     text-transform: uppercase;
-    letter-spacing: .12em;
-    font-weight: 800;
-    color: #a5b4fc !important;
-    margin-bottom: 10px;
+    letter-spacing: 0.12em;
+    font-weight: 700;
+    color: #818cf8 !important;
+    background: rgba(99, 102, 241, 0.1);
+    padding: 6px 14px;
+    margin-right: 10px;
+    border-radius: 20px;
+    border: 1px solid rgba(99, 102, 241, 0.2);
 }
+.eyebrow-accent {
+    display: inline-flex;
+    align-items: center;
+    font-size: 0.7rem;
+    text-transform: uppercase;
+    letter-spacing: 0.12em;
+    font-weight: 700;
+    color: #6ee7b7 !important;
+    background: rgba(16, 185, 129, 0.1);
+    padding: 6px 14px;
+    border-radius: 20px;
+    border: 1px solid rgba(16, 185, 129, 0.2);
+}
+
 .app-hero h1 {
-    margin: 0;
-    font-size: 2.35rem;
-    font-weight: 800;
-    color: #ffffff !important;
+    font-size: 2.75rem !important;
+    font-weight: 700 !important;
+    letter-spacing: -0.04em !important;
+    background: linear-gradient(180deg, #ffffff 0%, #a1a1aa 100%);
+    -webkit-background-clip: text;
+    -webkit-text-fill-color: transparent;
+    margin: 16px 0 12px 0 !important;
 }
+
 .app-hero p {
-    margin: 8px 0 0;
-    color: #94a3b8 !important;
-    font-size: 0.98rem;
+    color: var(--text-secondary) !important;
+    font-size: 1.05rem;
     line-height: 1.6;
     max-width: 820px;
 }
 
-/* 3. Workflow Stepper */
+/* Process Stepper */
 .workflow {
     display: grid;
     grid-template-columns: repeat(5, 1fr);
     gap: 12px;
-    margin: 14px 0 24px;
+    margin: 18px 0 26px;
 }
 .workflow-step {
-    position: relative;
+    display: flex;
+    align-items: center;
+    gap: 12px;
+    background: rgba(255, 255, 255, 0.02);
     border: 1px solid var(--border-subtle);
-    border-radius: 13px;
-    padding: 13px 15px;
-    background: var(--bg-card);
-    box-shadow: 0 2px 8px rgba(0, 0, 0, 0.18);
-    font-size: .88rem;
-    font-weight: 700;
-    color: #e2e8f0 !important;
+    border-radius: 14px;
+    padding: 12px 14px;
+    transition: all 0.2s ease;
 }
-.workflow-step span {
-    display: block;
+.workflow-step:hover {
+    border-color: rgba(99, 102, 241, 0.4);
+    transform: translateY(-2px);
+    background: rgba(255, 255, 255, 0.04);
+}
+.step-num {
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    width: 28px;
+    height: 28px;
+    border-radius: 8px;
+    background: rgba(99, 102, 241, 0.15);
     color: #818cf8 !important;
-    font-size: .68rem;
-    text-transform: uppercase;
-    letter-spacing: .1em;
-    margin-bottom: 2px;
+    font-weight: 700;
+    font-size: 0.75rem;
 }
-.workflow-step:not(:last-child):after {
-    content: "›";
-    position: absolute;
-    right: -9px;
-    top: 50%;
-    transform: translateY(-50%);
-    color: #4f46e5;
-    font-size: 1.35rem;
-    z-index: 2;
+.step-content {
+    font-size: 0.85rem;
+    font-weight: 600;
+    color: #f1f5f9 !important;
+}
+.step-content span {
+    display: block;
+    font-size: 0.65rem;
+    text-transform: uppercase;
+    letter-spacing: 0.08em;
+    color: #64748b !important;
 }
 
-/* 4. Dropzone */
+/* File Uploader */
 [data-testid="stFileUploader"] section {
-    background: var(--bg-card) !important;
-    border: 1.5px dashed #4338ca !important;
+    background: rgba(255, 255, 255, 0.01) !important;
+    border: 1px dashed rgba(255, 255, 255, 0.15) !important;
     border-radius: 16px !important;
-    padding: 24px !important;
+    padding: 32px !important;
+    transition: all 0.2s ease !important;
 }
 [data-testid="stFileUploader"] section:hover {
-    border-color: #6366f1 !important;
-    background: #182236 !important;
-}
-[data-testid="stFileUploaderDropzoneInstructions"] * {
-    color: #cbd5e1 !important;
-}
-[data-testid="stFileUploader"] section button {
-    background: linear-gradient(135deg, #4f46e5, #6366f1) !important;
-    border: none !important;
-    border-radius: 10px !important;
-    padding: 6px 16px !important;
-    box-shadow: 0 2px 8px rgba(79, 70, 229, 0.25);
-}
-[data-testid="stFileUploader"] section button * {
-    color: #ffffff !important;
-    font-weight: 750 !important;
+    background: rgba(99, 102, 241, 0.03) !important;
+    border: 1px dashed rgba(99, 102, 241, 0.4) !important;
 }
 [data-testid="stFileUploaderFile"] {
-    background: #1e293b !important;
-    border: 1px solid #334155 !important;
+    background: rgba(255, 255, 255, 0.03) !important;
+    border: 1px solid var(--border-subtle) !important;
     border-radius: 10px !important;
 }
-[data-testid="stFileUploaderFile"] * {
-    color: #f8fafc !important;
-}
 
-/* 5. Buttons */
-button[kind="primary"], 
-.stButton > button[kind="primary"], 
-div.stButton > button:first-child,
-.stDownloadButton > button {
-    background: linear-gradient(135deg, #4f46e5 0%, #7c3aed 100%) !important;
-    border: none !important;
+/* Buttons */
+button[kind="primary"], .stDownloadButton > button {
+    background: linear-gradient(135deg, #4f46e5 0%, #6366f1 100%) !important;
+    border: 1px solid rgba(255, 255, 255, 0.1) !important;
     border-radius: 12px !important;
     min-height: 2.9rem !important;
-    box-shadow: 0 4px 14px rgba(79, 70, 229, 0.25) !important;
-    transition: transform .12s ease !important;
+    font-weight: 600 !important;
+    box-shadow: 0 8px 16px -4px rgba(79, 70, 229, 0.3) !important;
+    transition: transform 0.15s ease, box-shadow 0.15s ease !important;
 }
-button[kind="primary"]:hover, 
-.stButton > button[kind="primary"]:hover,
-.stDownloadButton > button:hover {
-    transform: translateY(-1px) !important;
+button[kind="primary"]:hover, .stDownloadButton > button:hover {
+    transform: translateY(-2px) !important;
+    box-shadow: 0 12px 20px -4px rgba(79, 70, 229, 0.4) !important;
 }
-button[kind="primary"] *, 
-.stButton > button[kind="primary"] *, 
-div.stButton > button:first-child *,
-.stDownloadButton > button * {
+button[kind="primary"] *, .stDownloadButton > button * {
     color: #ffffff !important;
-    font-weight: 750 !important;
     font-size: 1rem !important;
 }
 
-/* 6. Form Controls */
-[data-testid="stWidgetLabel"] label,
+/* Inputs & Dropdowns */
 [data-testid="stWidgetLabel"] p {
     color: #e2e8f0 !important;
-    font-weight: 700 !important;
+    font-weight: 600 !important;
     font-size: 0.92rem !important;
 }
-div[data-baseweb="select"] > div {
-    background: var(--bg-card) !important;
+div[data-baseweb="select"] > div, input[type="text"] {
+    background: rgba(255, 255, 255, 0.02) !important;
     border: 1px solid var(--border-subtle) !important;
-    border-radius: 11px !important;
-    color: #f8fafc !important;
+    border-radius: 12px !important;
+    color: var(--text-primary) !important;
+    transition: all 0.2s ease;
 }
 div[data-baseweb="select"] > div:focus-within {
-    border-color: #6366f1 !important;
+    border-color: var(--border-glow) !important;
+    background: rgba(255, 255, 255, 0.04) !important;
 }
-div[data-baseweb="select"] * {
-    color: #f8fafc !important;
-}
-div[data-baseweb="popover"] ul,
+div[data-baseweb="select"] * { color: #f8fafc !important; }
 div[data-baseweb="menu"] {
-    background: #111827 !important;
-    border: 1px solid #374151 !important;
+    background: #0f172a !important;
+    border: 1px solid #1e293b !important;
 }
-div[data-baseweb="menu"] li {
-    background: #111827 !important;
-    color: #f8fafc !important;
-}
-div[data-baseweb="menu"] li:hover {
-    background: #1f2937 !important;
-    color: #818cf8 !important;
-}
+div[data-baseweb="menu"] li:hover { background: rgba(99, 102, 241, 0.15) !important; }
 
-/* 7. Tags & Expanders */
-[data-baseweb="tag"] {
-    background: #1e293b !important;
-    border: 1px solid #334155 !important;
-    border-radius: 8px !important;
-}
-[data-baseweb="tag"] span, [data-baseweb="tag"] svg {
-    color: #e2e8f0 !important;
-}
+/* Expanders */
 [data-testid="stExpander"] {
-    background: var(--bg-card) !important;
+    background: rgba(13, 18, 28, 0.4) !important;
+    backdrop-filter: blur(10px);
     border: 1px solid var(--border-subtle) !important;
-    border-radius: 14px !important;
-    margin-top: .4rem !important;
-    margin-bottom: .8rem !important;
+    border-radius: 16px !important;
 }
-[data-testid="stExpander"] summary, [data-testid="stExpander"] summary * {
-    color: #f8fafc !important;
-    font-weight: 750 !important;
-}
-
 .candidate-chip {
     display: inline-flex;
     align-items: center;
     padding: 5px 12px;
     border-radius: 999px;
-    background: rgba(99, 102, 241, 0.18);
-    border: 1px solid rgba(99, 102, 241, 0.32);
-    color: #a5b4fc !important;
-    font-size: .72rem;
-    font-weight: 800;
-    letter-spacing: .08em;
+    background: rgba(99, 102, 241, 0.1);
+    border: 1px solid rgba(99, 102, 241, 0.2);
+    color: #818cf8 !important;
+    font-size: 0.72rem;
+    font-weight: 700;
+    letter-spacing: 0.08em;
     margin-bottom: 8px;
 }
-
-.app-footer {
-    text-align: center;
-    color: #64748b !important;
-    font-size: .84rem;
-    padding: 2.8rem 0 .5rem;
-}
-.app-footer strong {
-    color: #94a3b8 !important;
-}
-hr {
-    border-color: #1e293b !important;
-}
-@media (max-width: 800px) {
-    .workflow { grid-template-columns: 1fr; }
-    .workflow-step:not(:last-child):after { display: none; }
-}
+.app-footer { text-align: center; color: #64748b !important; font-size: 0.84rem; padding: 2.8rem 0 0.5rem; }
+@media (max-width: 900px) { .workflow { grid-template-columns: 1fr; } }
 </style>""", unsafe_allow_html=True)
 
 # ------------------------------------------------------------
@@ -1268,6 +1246,9 @@ def populate_excel(data, sheet):
 # ------------------------------------------------------------
 # UI DISPLAY HELPERS
 # ------------------------------------------------------------
+# ------------------------------------------------------------
+# UI DISPLAY HELPERS
+# ------------------------------------------------------------
 def _info_grid(items, columns=3):
     cols = st.columns(columns)
     for idx, (label, val) in enumerate(items):
@@ -1275,9 +1256,23 @@ def _info_grid(items, columns=3):
             shown = val if val not in (None, "", [], {}) else "—"
             st.markdown(
                 f"""
-                <div style="border:1px solid #243048;border-radius:12px;padding:12px 14px;margin-bottom:12px;background:#151c2c;box-shadow:0 4px 16px rgba(0,0,0,0.25);min-height:74px;">
-                    <div style="font-size:11px;text-transform:uppercase;letter-spacing:.06em;color:#818cf8;font-weight:750;margin-bottom:4px;">{label}</div>
-                    <div style="font-size:14px;line-height:1.35;color:#f8fafc;font-weight:650;word-break:break-word;">{shown}</div>
+                <div style="
+                    background: rgba(255, 255, 255, 0.02);
+                    backdrop-filter: blur(10px);
+                    -webkit-backdrop-filter: blur(10px);
+                    border: 1px solid rgba(255, 255, 255, 0.05);
+                    border-radius: 16px;
+                    padding: 16px 20px;
+                    margin-bottom: 16px;
+                    box-shadow: 0 4px 6px -1px rgba(0, 0, 0, 0.1), 0 2px 4px -1px rgba(0, 0, 0, 0.06);
+                    transition: transform 0.2s ease, background 0.2s ease;
+                " onmouseover="this.style.background='rgba(255, 255, 255, 0.04)'; this.style.transform='translateY(-2px)';" onmouseout="this.style.background='rgba(255, 255, 255, 0.02)'; this.style.transform='translateY(0)';">
+                    <div style="font-size: 11px; text-transform: uppercase; letter-spacing: 0.1em; color: #64748b; font-weight: 600; margin-bottom: 6px;">
+                        {label}
+                    </div>
+                    <div style="font-size: 15px; line-height: 1.4; color: #f1f5f9; font-weight: 500; word-break: break-word;">
+                        {shown}
+                    </div>
                 </div>
                 """,
                 unsafe_allow_html=True,
@@ -1288,9 +1283,21 @@ def _metric_card(label, val):
     shown = val if val not in (None, "", [], {}) else "—"
     st.markdown(
         f"""
-        <div style="border:1px solid #243048;border-radius:14px;padding:13px 16px;background:linear-gradient(180deg,#151c2c,#101624);box-shadow:0 6px 20px rgba(0,0,0,0.3);min-height:76px;">
-            <div style="font-size:12px;color:#94a3b8;font-weight:700;margin-bottom:4px;">{label}</div>
-            <div style="font-size:21px;line-height:1.2;color:#ffffff;font-weight:800;">{shown}</div>
+        <div style="
+            background: rgba(99, 102, 241, 0.03);
+            backdrop-filter: blur(10px);
+            border: 1px solid rgba(99, 102, 241, 0.1);
+            border-radius: 16px;
+            padding: 16px 20px;
+            margin-bottom: 16px;
+            box-shadow: inset 0 1px 1px rgba(255,255,255,0.05), 0 4px 6px -1px rgba(0, 0, 0, 0.1);
+        ">
+            <div style="font-size: 11px; text-transform: uppercase; letter-spacing: 0.1em; color: #818cf8; font-weight: 600; margin-bottom: 6px;">
+                {label}
+            </div>
+            <div style="font-size: 22px; line-height: 1.2; color: #ffffff; font-weight: 600; letter-spacing: -0.02em;">
+                {shown}
+            </div>
         </div>
         """,
         unsafe_allow_html=True,
@@ -1338,7 +1345,7 @@ def _field_hint(cv_value, is_matched, unconfirmed_msg="Select closest master mat
 SG_ADD_CANDIDATE_URL = "https://skillgroomers.projects-digitalgem.com/main/candidate/new"
 
 
-def build_transfer_url(data, mapping, sel_core, sel_func, sel_ind, sel_kw, sel_city, sel_state, sel_native_city, sel_native_state, sel_edu):
+def build_transfer_url(data, mapping, sel_core, sel_func, sel_ind, sel_kw, sel_city, sel_state, sel_native_city, sel_native_state, sel_edu, action="cvfill"):
     jobs = sort_jobs(data.get("work_experience", []))
     cur, prev = get_current_and_previous_jobs(jobs)
     tot_m = total_experience_months(jobs)
@@ -1399,7 +1406,9 @@ def build_transfer_url(data, mapping, sel_core, sel_func, sel_ind, sel_kw, sel_c
     }
     raw = json.dumps(transfer, separators=(",", ":")).encode("utf-8")
     token = base64.urlsafe_b64encode(raw).decode("ascii").rstrip("=")
-    return f"{SG_ADD_CANDIDATE_URL}#cvfill={urllib.parse.quote(token)}"
+    
+    # Change the return statement to use the new action parameter:
+    return f"{SG_ADD_CANDIDATE_URL}#{action}={urllib.parse.quote(token)}"
 
 
 def _render_review_card(filename, file_info):
@@ -1640,21 +1649,28 @@ def _render_review_card(filename, file_info):
                 "Raw Jobs Count": len(jobs),
             })
 
-    transfer_url = build_transfer_url(data, mapping, sel_core, sel_func_rec, sel_ind, sel_kw, sel_city, sel_state, sel_native_city, sel_native_state, sel_edu_rec)
+    transfer_url_main = build_transfer_url(data, mapping, sel_core, sel_func_rec, sel_ind, sel_kw, sel_city, sel_state, sel_native_city, sel_native_state, sel_edu_rec, action="cvfill")
+    transfer_url_dates = build_transfer_url(data, mapping, sel_core, sel_func_rec, sel_ind, sel_kw, sel_city, sel_state, sel_native_city, sel_native_state, sel_edu_rec, action="cvdates")
 
     if st.session_state[approve_key]:
-        st.markdown(
+        tab_id = "sg_" + re.sub(r'[^a-zA-Z0-9]', '', filename)
+        components.html(
             f"""
-            <a href="{transfer_url}" target="_blank"
-               style="display:block;width:100%;text-align:center;padding:0.78rem 1.2rem;border-radius:12px;background:linear-gradient(135deg,#4f46e5,#7c3aed);color:#ffffff;font-weight:750;text-decoration:none;margin-top:10px;box-shadow:0 8px 24px rgba(79,70,229,.35);">
-               ⚡ Open Skill Groomers & Fill Candidate →
-            </a>
+            <div style="display: flex; gap: 12px; font-family: 'Plus Jakarta Sans', sans-serif;">
+                <button onclick="window.open('{transfer_url_main}', '{tab_id}')"
+                   style="flex: 1; cursor: pointer; border: none; padding: 12px; border-radius: 12px; background: linear-gradient(135deg, #4f46e5, #7c3aed); color: #ffffff; font-weight: 600; font-size: 14px; box-shadow: 0 4px 12px rgba(79,70,229,.3);">
+                   1. Fill Main Form →
+                </button>
+                <button onclick="window.open('{transfer_url_dates}', '{tab_id}')"
+                   style="flex: 1; cursor: pointer; border: none; padding: 12px; border-radius: 12px; background: linear-gradient(135deg, #059669, #10b981); color: #ffffff; font-weight: 600; font-size: 14px; box-shadow: 0 4px 12px rgba(16,185,129,.3);">
+                   2. Fill DOB Only 📅
+                </button>
+            </div>
             """,
-            unsafe_allow_html=True,
+            height=60
         )
     else:
-        st.button("⚡ Open Skill Groomers & Fill Candidate →", key=f"disabled_sg_{filename}", disabled=True, use_container_width=True, help="Click Approve Candidate above first.")
-
+        st.button("⚡ Open Skill Groomers & Fill Candidate", key=f"disabled_sg_{filename}", disabled=True, use_container_width=True, help="Click Approve Candidate above first.")
 
 # ------------------------------------------------------------
 # MAIN STREAMLIT APP SHELL
@@ -1667,11 +1683,11 @@ st.markdown(
         <p>Extract verified candidate facts, calculate deterministic experience metrics, and autofill directly into the recruitment platform.</p>
     </div>
     <div class="workflow">
-        <div class="workflow-step"><span>Step 1</span>Upload CV</div>
-        <div class="workflow-step"><span>Step 2</span>Analyse</div>
-        <div class="workflow-step"><span>Step 3</span>Review Facts</div>
-        <div class="workflow-step"><span>Step 4</span>Approve</div>
-        <div class="workflow-step"><span>Step 5</span>Autofill Platform</div>
+        <div class="workflow-step">Upload CV</div>
+        <div class="workflow-step">Analyse</div>
+        <div class="workflow-step">Review Facts</div>
+        <div class="workflow-step">Approve</div>
+        <div class="workflow-step">Autofill Platform</div>
     </div>
     """,
     unsafe_allow_html=True,
@@ -1696,7 +1712,14 @@ if st.button("Analyse Resumes", type="primary", use_container_width=True, key="a
 
                     raw_gemini = reconcile_qualification_text(raw_gemini)
                     data = normalize_factual_education(raw_gemini)
-                    mapping = build_skill_groomers_mapping(data, source_text=raw_text)
+                    # --- FAILSAFE FOR SCANNED & MULTI-COLUMN PDFs ---
+                    # Create a rich text pool by combining whatever PyPDF2 managed to read 
+                    # WITH the perfectly structured data Gemini extracted from the image.
+                    safe_raw_text = str(raw_text) if raw_text else ""
+                    fallback_evidence = safe_raw_text + " " + json.dumps(data)
+
+                    # Pass the enriched evidence pool into the mapping engine
+                    mapping = build_skill_groomers_mapping(data, source_text=fallback_evidence)
                     excel_data = apply_mapping_to_excel_data(data, mapping)
 
                     template_path = os.path.join(BASE_DIR, "resume1.xlsx")
@@ -1718,6 +1741,13 @@ if st.button("Analyse Resumes", type="primary", use_container_width=True, key="a
                 st.success(f"✓ Ready: {uploaded_file.name}")
             except Exception as e:
                 st.error(f"Error processing {uploaded_file.name}: {e}")
+
+# Get the current process ID and memory usage
+process = psutil.Process(os.getpid())
+ram_mb = process.memory_info().rss / (1024 * 1024)
+
+# Display as a subtle metric
+st.caption(f"⚙️ **System:** {ram_mb:.1f} MB RAM currently in use")
 
 if st.session_state.generated_files:
     st.divider()
