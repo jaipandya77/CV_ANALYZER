@@ -1659,7 +1659,7 @@ def _render_review_card(filename, file_info):
             <div style="display: flex; gap: 12px; font-family: 'Plus Jakarta Sans', sans-serif;">
                 <button onclick="window.open('{transfer_url_main}', '{tab_id}')"
                    style="flex: 1; cursor: pointer; border: none; padding: 12px; border-radius: 12px; background: linear-gradient(135deg, #4f46e5, #7c3aed); color: #ffffff; font-weight: 600; font-size: 14px; box-shadow: 0 4px 12px rgba(79,70,229,.3);">
-                   1. Fill Main Form →
+                   1. Autofill Add Candidate form →
                 </button>
                 <button onclick="window.open('{transfer_url_dates}', '{tab_id}')"
                    style="flex: 1; cursor: pointer; border: none; padding: 12px; border-radius: 12px; background: linear-gradient(135deg, #059669, #10b981); color: #ffffff; font-weight: 600; font-size: 14px; box-shadow: 0 4px 12px rgba(16,185,129,.3);">
