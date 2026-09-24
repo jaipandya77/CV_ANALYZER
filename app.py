@@ -14,7 +14,7 @@ import PyPDF2
 import openpyxl
 from google import genai
 from google.genai import types, errors
-
+ 
 # Page configuration must be the first Streamlit command
 st.set_page_config(page_title="CV Analyzer", page_icon="📄", layout="wide")
 
