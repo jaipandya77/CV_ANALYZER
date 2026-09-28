@@ -1068,7 +1068,7 @@ def _match_course_family(comb):
         ([r"\bm\s*sc\b", r"\bmsc\b", r"\bmaster\s*(?:of\s*)?science\b"], "Masters of Science (M.Sc)"),
         ([r"\bm\s*com\b", r"\bmcom\b", r"\bmaster\s*(?:of\s*)?commerce\b"], "Masters of Commerce (M.Com)"),
         ([r"\bmba\b", r"\bpgdm\b", r"\bmaster\s*(?:of\s*)?business\s+administration\b"], "Masters of Business Administration (MBA / PGDM)"),
-        ([r"\bmca\b", r"\bmaster\s*(?:of\s*)?computer\s+applications?\b"], "Masters of Computer Application (MCA)")
+        ([r"\bmca\b", r"\bmaster\s*(?:of\s*)?computer\s+applications?\b"], "Masters of Computer Application (MCA)"),
         ([r"\bb\s*e\b", r"\bbe\b", r"\bbachelor\s*(?:of\s*)?engineering\b", r"\bb\s*tech\b", r"\bbtech\b", r"\bbachelor\s*(?:of\s*)?technology\b"], "BE / B.Tech"),
         ([r"\bb\s*sc\b", r"\bbsc\b", r"\bbachelor\s*(?:of\s*)?science\b"], "Bachelor of Science (B.Sc)"),
         ([r"\bb\s*com\b", r"\bbcom\b", r"\bbachelor\s*(?:of\s*)?commerce\b"], "Bachelor of Commerce (B.Com)"),
