@@ -14,7 +14,7 @@ import PyPDF2
 import openpyxl
 from google import genai
 from google.genai import types, errors
-
+ 
 # Page configuration must be the first Streamlit command
 st.set_page_config(page_title="CV Analyzer", page_icon="📄", layout="wide")
 
@@ -1068,8 +1068,7 @@ def _match_course_family(comb):
         ([r"\bm\s*sc\b", r"\bmsc\b", r"\bmaster\s*(?:of\s*)?science\b"], "Masters of Science (M.Sc)"),
         ([r"\bm\s*com\b", r"\bmcom\b", r"\bmaster\s*(?:of\s*)?commerce\b"], "Masters of Commerce (M.Com)"),
         ([r"\bmba\b", r"\bpgdm\b", r"\bmaster\s*(?:of\s*)?business\s+administration\b"], "Masters of Business Administration (MBA / PGDM)"),
-        ([r"\bmca\b", r"\bmaster\s*(?:of\s*)?computer\s+applications?\b"], "Masters of Computer Application (MCA)"),
-
+        ([r"\bmca\b", r"\bmaster\s*(?:of\s*)?computer\s+applications?\b"], "Masters of Computer Application (MCA)")
         ([r"\bb\s*e\b", r"\bbe\b", r"\bbachelor\s*(?:of\s*)?engineering\b", r"\bb\s*tech\b", r"\bbtech\b", r"\bbachelor\s*(?:of\s*)?technology\b"], "BE / B.Tech"),
         ([r"\bb\s*sc\b", r"\bbsc\b", r"\bbachelor\s*(?:of\s*)?science\b"], "Bachelor of Science (B.Sc)"),
         ([r"\bb\s*com\b", r"\bbcom\b", r"\bbachelor\s*(?:of\s*)?commerce\b"], "Bachelor of Commerce (B.Com)"),
@@ -1563,18 +1562,9 @@ def _render_review_card(filename, file_info):
 
     col_app, col_dbg = st.columns([3, 1])
     with col_app:
-        def approve_candidate():
+        if st.button("✅ Approve Candidate", key=f"app_{filename}", use_container_width=True):
             st.session_state[approve_key] = True
-            
-        is_approved = st.session_state[approve_key]
-        
-        st.button(
-            "✅ Candidate Verified & Approved" if is_approved else "✅ Approve Candidate", 
-            key=f"app_{filename}", 
-            on_click=approve_candidate, 
-            disabled=is_approved,
-            use_container_width=True
-        )
+            st.success("Candidate verified and approved for Skill Groomers.")
     with col_dbg:
         if st.button("🐞 Debug Info", key=f"dbg_btn_{filename}", use_container_width=True):
             st.session_state[dbg_key] = not st.session_state[dbg_key]
@@ -1669,7 +1659,7 @@ def _render_review_card(filename, file_info):
             <div style="display: flex; gap: 12px; font-family: 'Plus Jakarta Sans', sans-serif;">
                 <button onclick="window.open('{transfer_url_main}', '{tab_id}')"
                    style="flex: 1; cursor: pointer; border: none; padding: 12px; border-radius: 12px; background: linear-gradient(135deg, #4f46e5, #7c3aed); color: #ffffff; font-weight: 600; font-size: 14px; box-shadow: 0 4px 12px rgba(79,70,229,.3);">
-                   1. Fill Main Form →
+                   1. Autofill Add Candidate form →
                 </button>
                 <button onclick="window.open('{transfer_url_dates}', '{tab_id}')"
                    style="flex: 1; cursor: pointer; border: none; padding: 12px; border-radius: 12px; background: linear-gradient(135deg, #059669, #10b981); color: #ffffff; font-weight: 600; font-size: 14px; box-shadow: 0 4px 12px rgba(16,185,129,.3);">
