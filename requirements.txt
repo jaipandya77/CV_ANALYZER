@@ -1,5 +1,5 @@
 streamlit
 google-genai
-PyPDF2
+PyMuPDF
 openpyxl
 psutil
