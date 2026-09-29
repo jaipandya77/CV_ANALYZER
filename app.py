@@ -10,7 +10,7 @@ import urllib.parse
 from difflib import SequenceMatcher
 from datetime import datetime
 import streamlit as st
-import PyPDF2
+import fitz
 import openpyxl
 from google import genai
 from google.genai import types, errors
@@ -277,15 +277,19 @@ MASTER_DATA_FILE = V7_PATH if os.path.exists(V7_PATH) else V6_PATH
 class GeminiTemporaryUnavailable(Exception):
     pass
 
-
 def extract_text_from_pdf(file):
     pdf_bytes = file.getvalue() if hasattr(file, "getvalue") else file.read()
-    reader = PyPDF2.PdfReader(io.BytesIO(pdf_bytes))
+    
+    # Open the PDF directly from the byte stream using PyMuPDF
+    doc = fitz.open(stream=pdf_bytes, filetype="pdf")
     text = []
-    for page in reader.pages:
-        extracted = page.extract_text()
+    
+    for page in doc:
+        # sort=True forces the extractor to respect vertical and horizontal visual alignment (columns)
+        extracted = page.get_text("text", sort=True)
         if extracted:
             text.append(extracted)
+            
     return "\n".join(text)
 
 
