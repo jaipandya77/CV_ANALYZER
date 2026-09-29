@@ -1727,7 +1727,13 @@ if st.button("Analyse Resumes", type="primary", use_container_width=True, key="a
                 with st.spinner(f"Analyzing {uploaded_file.name}..."):
                     pdf_bytes = uploaded_file.getvalue()
                     raw_text = extract_text_from_pdf(uploaded_file)
-                    raw_gemini = extract_resume_data(raw_text, pdf_bytes=pdf_bytes)
+                    # If PyPDF2 extracted the text successfully, bypass the heavy visual PDF upload
+                    if len(raw_text.strip()) > 100:
+                        raw_gemini = extract_resume_data(raw_text)
+                    else:
+                        # Fallback for scanned PDFs that require visual reading
+                        raw_gemini = extract_resume_data(raw_text, pdf_bytes=pdf_bytes)
+
 
                     raw_gemini = reconcile_qualification_text(raw_gemini)
                     data = normalize_factual_education(raw_gemini)
